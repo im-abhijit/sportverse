@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, ArrowLeft, RotateCcw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialMode = "login",
 }) => {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "venue">(initialMode);
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -90,12 +92,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
       if (otp === "123456") { // Demo OTP
         toast.success("Login successful!");
         onClose();
-        // Redirect based on mode
-        if (mode === "venue") {
-          window.location.href = "/owner";
-        } else {
-          window.location.href = "/dashboard";
-        }
+        // Always navigate to dashboard after login
+        navigate("/dashboard");
       } else {
         toast.error("Invalid OTP. Please try again.");
         setOtp("");
