@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Menu, User } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -7,10 +8,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import AuthModal from "@/components/AuthModal";
 
 const Navbar = () => {
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "venue">("login");
+
+  const handleAuthClick = (mode: "login" | "venue") => {
+    setAuthMode(mode);
+    setIsAuthModalOpen(true);
+  };
+
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <>
+      <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
@@ -29,14 +40,22 @@ const Navbar = () => {
             <Link to="/dashboard" className="text-sm font-medium transition-colors hover:text-primary">
               My Bookings
             </Link>
-            <Link to="/owner" className="text-sm font-medium transition-colors hover:text-primary">
-              Partner with Us
-            </Link>
+            <Button 
+              variant="default" 
+              size="sm"
+              onClick={() => handleAuthClick("venue")}
+            >
+              List your venue
+            </Button>
           </div>
 
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <User className="h-5 w-5" />
+            <Button 
+              variant="default" 
+              size="sm"
+              onClick={() => handleAuthClick("login")}
+            >
+              Login
             </Button>
 
             <DropdownMenu>
@@ -55,8 +74,11 @@ const Navbar = () => {
                 <DropdownMenuItem asChild>
                   <Link to="/dashboard" className="cursor-pointer">My Bookings</Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/owner" className="cursor-pointer">Partner with Us</Link>
+                <DropdownMenuItem 
+                  className="cursor-pointer"
+                  onClick={() => handleAuthClick("venue")}
+                >
+                  List your venue
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -64,6 +86,13 @@ const Navbar = () => {
         </div>
       </div>
     </nav>
+    
+    <AuthModal
+      isOpen={isAuthModalOpen}
+      onClose={() => setIsAuthModalOpen(false)}
+      initialMode={authMode}
+    />
+  </>
   );
 };
 
