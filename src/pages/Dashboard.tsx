@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Navbar from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,41 +7,39 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin } from "lucide-react";
+import { getBookingsByUser, type BookingResponse } from "@/services/bookingsApi";
 
 const Dashboard = () => {
   const [name, setName] = useState("John Doe");
   const [phone, setPhone] = useState("+91 9876543210");
   const [city, setCity] = useState("Mumbai");
 
-  const bookings = [
-    {
-      id: 1,
-      venue: "Elite Sports Arena",
-      date: "2025-02-15",
-      slot: "18:00 - 19:00",
-      status: "confirmed",
-      amount: 1200,
-      location: "Mumbai, Maharashtra",
-    },
-    {
-      id: 2,
-      venue: "Champions Cricket Ground",
-      date: "2025-02-20",
-      slot: "17:00 - 18:00",
-      status: "confirmed",
-      amount: 1500,
-      location: "Bangalore, Karnataka",
-    },
-    {
-      id: 3,
-      venue: "Pro Football Turf",
-      date: "2025-02-10",
-      slot: "19:00 - 20:00",
-      status: "completed",
-      amount: 1000,
-      location: "Delhi, NCR",
-    },
-  ];
+  const [bookings, setBookings] = useState<BookingResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const userId = localStorage.getItem("userId") || "";
+    if (!userId) return;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const resp = await getBookingsByUser(userId);
+        if (resp.success && Array.isArray(resp.data)) {
+          setBookings(resp.data);
+        } else {
+          setBookings([]);
+        }
+      } catch (e: any) {
+        setError(e?.message || "Failed to load bookings");
+        setBookings([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -54,6 +52,15 @@ const Dashboard = () => {
       default:
         return "bg-muted";
     }
+  };
+
+  const toDisplayStatus = (booking: BookingResponse): string => {
+    const b = (booking.bookingStatus || "").toUpperCase();
+    const p = (booking.paymentStatus || "").toUpperCase();
+    if (b === "PAID" || p === "SUCCESS") return "confirmed";
+    if (b === "COMPLETED") return "completed";
+    if (b === "CANCELLED") return "cancelled";
+    return (booking.bookingStatus || p || "").toString().toLowerCase() || "pending";
   };
 
   return (
@@ -70,6 +77,15 @@ const Dashboard = () => {
           </TabsList>
 
           <TabsContent value="bookings" className="space-y-6">
+            {loading && (
+              <div className="text-sm text-muted-foreground">Loading bookings...</div>
+            )}
+            {error && (
+              <div className="text-sm text-destructive">{error}</div>
+            )}
+            {!loading && !error && bookings.length === 0 && (
+              <div className="text-sm text-muted-foreground">No bookings found.</div>
+            )}
             <div className="grid gap-4">
               {bookings.map((booking) => (
                 <Card key={booking.id} className="overflow-hidden">
@@ -79,17 +95,15 @@ const Dashboard = () => {
                         <div className="flex items-start justify-between">
                           <div>
                             <h3 className="font-semibold text-lg mb-1">
-                              {booking.venue}
+                              {booking.venue?.name || "Venue"}
                             </h3>
                             <div className="flex items-center text-sm text-muted-foreground">
                               <MapPin className="h-4 w-4 mr-1" />
-                              {booking.location}
+                              {`${booking.venue?.city || ""}${booking.venue?.addtress ? ", " + booking.venue.addtress : ""}`}
                             </div>
                           </div>
-                          <Badge
-                            className={`${getStatusColor(booking.status)} text-white`}
-                          >
-                            {booking.status}
+                          <Badge className={`${getStatusColor(toDisplayStatus(booking))} text-white`}>
+                            {toDisplayStatus(booking)}
                           </Badge>
                         </div>
 
@@ -99,7 +113,9 @@ const Dashboard = () => {
                             {booking.date}
                           </div>
                           <div className="text-muted-foreground">
-                            Slot: {booking.slot}
+                            Slot: {Array.isArray(booking.slots) && booking.slots.length > 0
+                              ? booking.slots.map(s => `${s.startTime} - ${s.endTime}`).join(", ")
+                              : "-"}
                           </div>
                         </div>
                       </div>
@@ -113,7 +129,7 @@ const Dashboard = () => {
                             Total Amount
                           </div>
                         </div>
-                        {booking.status === "confirmed" && (
+                        {toDisplayStatus(booking) === "confirmed" && (
                           <Button variant="outline" size="sm">
                             View Details
                           </Button>
