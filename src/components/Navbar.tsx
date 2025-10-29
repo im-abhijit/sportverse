@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Menu, User } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,12 +12,47 @@ import {
 import AuthModal from "@/components/AuthModal";
 
 const Navbar = () => {
+  const navigate = useNavigate();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "venue">("login");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check if user is logged in on component mount
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      const authStatus = localStorage.getItem('isLoggedIn');
+      setIsLoggedIn(authStatus === 'true');
+    };
+    
+    checkAuthStatus();
+    
+    // Listen for storage changes (when user logs in from another tab)
+    window.addEventListener('storage', checkAuthStatus);
+    
+    return () => {
+      window.removeEventListener('storage', checkAuthStatus);
+    };
+  }, []);
 
   const handleAuthClick = (mode: "login" | "venue") => {
+    const currentAuthStatus = localStorage.getItem('isLoggedIn') === 'true';
+    if (currentAuthStatus && mode === 'venue') {
+      navigate('/list-venue');
+      return;
+    }
     setAuthMode(mode);
     setIsAuthModalOpen(true);
+  };
+
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('isLoggedIn');
+    setIsLoggedIn(false);
+    // Optionally redirect to home page
+    window.location.href = '/';
   };
 
   return (
@@ -37,9 +73,11 @@ const Navbar = () => {
             <Link to="/venues" className="text-sm font-medium transition-colors hover:text-primary">
               Explore
             </Link>
-            <Link to="/dashboard" className="text-sm font-medium transition-colors hover:text-primary">
-              My Bookings
-            </Link>
+            {isLoggedIn && (
+              <Link to="/dashboard" className="text-sm font-medium transition-colors hover:text-primary">
+                My Bookings
+              </Link>
+            )}
             <Button 
               variant="default" 
               size="sm"
@@ -50,13 +88,23 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center space-x-4">
-            <Button 
-              variant="default" 
-              size="sm"
-              onClick={() => handleAuthClick("login")}
-            >
-              Login
-            </Button>
+            {isLoggedIn ? (
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={handleLogout}
+              >
+                Logout
+              </Button>
+            ) : (
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={() => handleAuthClick("login")}
+              >
+                Login
+              </Button>
+            )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild className="md:hidden">
@@ -71,9 +119,11 @@ const Navbar = () => {
                 <DropdownMenuItem asChild>
                   <Link to="/venues" className="cursor-pointer">Explore</Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/dashboard" className="cursor-pointer">My Bookings</Link>
-                </DropdownMenuItem>
+                {isLoggedIn && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="cursor-pointer">My Bookings</Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem 
                   className="cursor-pointer"
                   onClick={() => handleAuthClick("venue")}
@@ -91,6 +141,7 @@ const Navbar = () => {
       isOpen={isAuthModalOpen}
       onClose={() => setIsAuthModalOpen(false)}
       initialMode={authMode}
+      onLoginSuccess={handleLoginSuccess}
     />
   </>
   );

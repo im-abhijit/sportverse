@@ -19,17 +19,20 @@ import {
 } from "@/components/ui/dialog";
 import OTPInput from "@/components/ui/otp-input";
 import { toast } from "sonner";
+import { generateOtp, verifyOtp } from "@/services/authApi";
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: "login" | "venue";
+  onLoginSuccess?: () => void;
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   initialMode = "login",
+  onLoginSuccess,
 }) => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "venue">(initialMode);
@@ -68,14 +71,24 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+      const response = await generateOtp(fullPhoneNumber, "sms");
+      
+      if (response.success) {
+        setStep("otp");
+        setMaskedPhone(`${countryCode} ${phoneNumber.slice(0, 3)}XXXXX${phoneNumber.slice(-3)}`);
+        setResendTimer(30);
+        toast.success("OTP sent successfully!");
+      } else {
+        toast.error(response.message || "Failed to send OTP");
+      }
+    } catch (error) {
+      console.error("OTP generation error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to send OTP. Please try again.");
+    } finally {
       setIsLoading(false);
-      setStep("otp");
-      setMaskedPhone(`${countryCode} ${phoneNumber.slice(0, 3)}XXXXX${phoneNumber.slice(-3)}`);
-      setResendTimer(30);
-      toast.success("OTP sent successfully!");
-    }, 1500);
+    }
   };
 
   const handleVerifyOTP = async () => {
@@ -86,30 +99,63 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      if (otp === "123456") { // Demo OTP
+    try {
+      const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+      const response = await verifyOtp(fullPhoneNumber, otp);
+      
+      if (response.success && response.valid) {
         toast.success("Login successful!");
+        // Set login status in localStorage
+        localStorage.setItem('isLoggedIn', 'true');
+        // Persist returned user details for future API calls
+        if (response.userId) {
+          localStorage.setItem('userId', response.userId);
+        }
+        if (response.userName) {
+          localStorage.setItem('userName', response.userName);
+        }
+        // Notify parent component about successful login
+        onLoginSuccess?.();
         onClose();
-        // Always navigate to dashboard after login
+        // Always navigate to dashboard after successful verification
         navigate("/dashboard");
       } else {
-        toast.error("Invalid OTP. Please try again.");
+        toast.error(response.message || "Invalid OTP. Please try again.");
+        // Clear any stale user info on failure
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userName');
         setOtp("");
       }
-    }, 1500);
+    } catch (error) {
+      console.error("OTP verification error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to verify OTP. Please try again.");
+      setOtp("");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleResendOTP = () => {
+  const handleResendOTP = async () => {
     if (resendTimer > 0) return;
     
     setIsLoading(true);
-    setTimeout(() => {
+    
+    try {
+      const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+      const response = await generateOtp(fullPhoneNumber, "sms");
+      
+      if (response.success) {
+        setResendTimer(30);
+        toast.success("OTP resent successfully!");
+      } else {
+        toast.error(response.message || "Failed to resend OTP");
+      }
+    } catch (error) {
+      console.error("OTP resend error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to resend OTP. Please try again.");
+    } finally {
       setIsLoading(false);
-      setResendTimer(30);
-      toast.success("OTP resent successfully!");
-    }, 1000);
+    }
   };
 
   const handleBackToPhone = () => {
@@ -229,15 +275,10 @@ const AuthModal: React.FC<AuthModalProps> = ({
             </>
           )}
         </div>
-
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground">
-            Demo OTP: <span className="font-mono font-semibold">123456</span>
-          </p>
-        </div>
       </DialogContent>
     </Dialog>
   );
 };
 
 export default AuthModal;
+

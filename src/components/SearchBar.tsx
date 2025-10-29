@@ -1,4 +1,5 @@
 import { Search, MapPin } from "lucide-react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +15,16 @@ interface SearchBarProps {
 }
 
 const SearchBar = ({ onSearch }: SearchBarProps) => {
+  const [city, setCity] = useState("");
+  const [sport, setSport] = useState("");
+
+  const triggerSearch = () => {
+    // Debug: verify trigger
+    // eslint-disable-next-line no-console
+    console.log("SearchBar: triggerSearch", { city, sport });
+    onSearch?.(city.trim(), sport);
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="flex flex-col md:flex-row gap-4 p-4 bg-background rounded-3xl shadow-xl border">
@@ -22,11 +33,18 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
           <Input
             placeholder="Enter your city"
             className="pl-10 h-12 rounded-2xl border-none bg-muted"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                triggerSearch();
+              }
+            }}
           />
         </div>
         
         <div className="flex-1">
-          <Select>
+          <Select onValueChange={(v) => setSport(v)}>
             <SelectTrigger className="h-12 rounded-2xl border-none bg-muted">
               <SelectValue placeholder="Select Sport" />
             </SelectTrigger>
@@ -40,7 +58,12 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
           </Select>
         </div>
         
-        <Button variant="hero" size="lg" className="md:w-auto w-full">
+        <Button
+          variant="hero"
+          size="lg"
+          className="md:w-auto w-full"
+          onClick={triggerSearch}
+        >
           <Search className="h-5 w-5 mr-2" />
           Search Venues
         </Button>
