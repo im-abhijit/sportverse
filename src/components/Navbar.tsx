@@ -142,6 +142,7 @@ const Navbar = () => {
       onClose={() => setIsAuthModalOpen(false)}
       initialMode={authMode}
       onLoginSuccess={handleLoginSuccess}
+      redirectOnSuccessTo="/dashboard"
     />
   </>
   );

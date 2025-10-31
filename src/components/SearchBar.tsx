@@ -1,6 +1,5 @@
 import { Search, MapPin } from "lucide-react";
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -30,17 +29,14 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
       <div className="flex flex-col md:flex-row gap-4 p-4 bg-background rounded-3xl shadow-xl border">
         <div className="flex-1 relative">
           <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            placeholder="Enter your city"
-            className="pl-10 h-12 rounded-2xl border-none bg-muted"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                triggerSearch();
-              }
-            }}
-          />
+          <Select onValueChange={(v) => setCity(v)}>
+            <SelectTrigger className="pl-10 h-12 rounded-2xl border-none bg-muted">
+              <SelectValue placeholder="Select City" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover z-[1000]">
+              <SelectItem value="Bareilly">Bareilly</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         
         <div className="flex-1">

@@ -8,6 +8,10 @@ import { getVenuesByCity, type VenueDto } from "@/services/venuesApi";
 import { getSlotsByVenueAndDate } from "@/services/slotsApi";
 import heroImage from "@/assets/hero-sports.jpg";
 
+// In-memory cache for last search within SPA navigation (resets on full reload)
+let lastSearchCityMemory: string = "";
+let lastSearchVenuesMemory: VenueDto[] = [];
+
 const Home = () => {
   const navigate = useNavigate();
   const [city, setCity] = useState("");
@@ -17,18 +21,11 @@ const Home = () => {
 
   // Removed Top Venues mock list
 
-  // Restore last search results when navigating back from details
+  // Restore last search results when navigating back from details (memory only)
   useEffect(() => {
-    try {
-      const savedCity = sessionStorage.getItem("sv:lastCity");
-      const savedVenues = sessionStorage.getItem("sv:lastVenues");
-      if (savedCity && savedVenues) {
-        setCity(savedCity);
-        const parsed = JSON.parse(savedVenues);
-        if (Array.isArray(parsed)) setCityVenues(parsed as VenueDto[]);
-      }
-    } catch {
-      // ignore parse errors
+    if (lastSearchCityMemory && Array.isArray(lastSearchVenuesMemory)) {
+      setCity(lastSearchCityMemory);
+      setCityVenues(lastSearchVenuesMemory);
     }
   }, []);
 
@@ -87,10 +84,9 @@ const Home = () => {
                 const data = res.data;
                 const list = Array.isArray(data) ? data : data ? [data] : [];
                 setCityVenues(list as VenueDto[]);
-                try {
-                  sessionStorage.setItem("sv:lastCity", enteredCity);
-                  sessionStorage.setItem("sv:lastVenues", JSON.stringify(list));
-                } catch {}
+                // Update in-memory cache (survives navigation, resets on reload)
+                lastSearchCityMemory = enteredCity;
+                lastSearchVenuesMemory = list as VenueDto[];
                 if (!res.success) {
                   setCityMsg(res.message || "No venues found");
                 } else if ((list as VenueDto[]).length === 0) {

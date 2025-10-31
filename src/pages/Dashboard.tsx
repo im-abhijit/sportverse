@@ -8,17 +8,35 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin } from "lucide-react";
 import { getBookingsByUser, type BookingResponse } from "@/services/bookingsApi";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { updateUserProfile } from "@/services/usersApi";
 
 const Dashboard = () => {
   const [name, setName] = useState("John Doe");
   const [phone, setPhone] = useState("+91 9876543210");
-  const [city, setCity] = useState("Mumbai");
+  const [city, setCity] = useState("Bareilly");
+  const [saving, setSaving] = useState(false);
 
   const [bookings, setBookings] = useState<BookingResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Prefill from localStorage if present
+    const lsName = localStorage.getItem("userName");
+    if (lsName) setName(lsName);
+    const lsCity = localStorage.getItem("userCity");
+    if (lsCity) setCity(lsCity);
+    const lsPhone = localStorage.getItem("userPhoneNumber");
+    if (lsPhone) setPhone(lsPhone);
+
     const userId = localStorage.getItem("userId") || "";
     if (!userId) return;
     const load = async () => {
@@ -162,20 +180,56 @@ const Dashboard = () => {
                   <Input
                     id="phone"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    readOnly
+                    disabled
+                    className="bg-muted cursor-not-allowed"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                  />
+                  <Select value={city} onValueChange={(v) => setCity(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select city" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Bareilly">Bareilly</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <Button variant="default">Save Changes</Button>
+                <Button
+                  variant="default"
+                  disabled={saving}
+                  onClick={async () => {
+                    const userId = localStorage.getItem("userId") || "";
+                    if (!userId) {
+                      toast.error("Please log in to save changes");
+                      return;
+                    }
+                    if (!name.trim() || !city.trim()) {
+                      toast.error("Name and city are required");
+                      return;
+                    }
+                    try {
+                      setSaving(true);
+                      const resp = await updateUserProfile(userId, name.trim(), city.trim(), phone);
+                      if (resp.success) {
+                        localStorage.setItem("userName", name.trim());
+                        localStorage.setItem("userCity", city.trim());
+                        toast.success(resp.message || "Profile updated");
+                      } else {
+                        toast.error(resp.message || "Failed to update profile");
+                      }
+                    } catch (e: any) {
+                      toast.error(e?.message || "Could not update profile");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

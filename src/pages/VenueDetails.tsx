@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, MapPin, Star, Wifi, Car, Zap, Users } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import AuthModal from "@/components/AuthModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -34,6 +35,7 @@ const VenueDetails = () => {
     return Array.isArray(passedVenue?.prefetchedSlots) && passedVenue.prefetchedSlots.length > 0;
   });
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Always refresh slots on mount with today's local date to avoid stale data
   useEffect(() => {
@@ -137,6 +139,12 @@ const VenueDetails = () => {
     // Subsequent: proceed only if at least one slot is selected
     if (selectedSlots.length === 0) {
       toast.error("Please select a time slot");
+      return;
+    }
+    // Ensure user is logged in before proceeding to payment
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    if (!isLoggedIn) {
+      setIsAuthModalOpen(true);
       return;
     }
     try {
@@ -395,6 +403,16 @@ const VenueDetails = () => {
           </div>
         </div>
       </div>
+    <AuthModal
+      isOpen={isAuthModalOpen}
+      onClose={() => setIsAuthModalOpen(false)}
+      initialMode="login"
+      redirectOnSuccessTo={null}
+      onLoginSuccess={() => {
+        // Close modal and remain on booking page; user can click Proceed again
+        setIsAuthModalOpen(false);
+      }}
+    />
     </div>
   );
 };

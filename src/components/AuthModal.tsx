@@ -26,6 +26,7 @@ interface AuthModalProps {
   onClose: () => void;
   initialMode?: "login" | "venue";
   onLoginSuccess?: () => void;
+  redirectOnSuccessTo?: string | null;
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({
@@ -33,6 +34,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialMode = "login",
   onLoginSuccess,
+  redirectOnSuccessTo = "/dashboard",
 }) => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "venue">(initialMode);
@@ -114,16 +116,21 @@ const AuthModal: React.FC<AuthModalProps> = ({
         if (response.userName) {
           localStorage.setItem('userName', response.userName);
         }
+        // Store phone number for profile display
+        localStorage.setItem('userPhoneNumber', fullPhoneNumber);
         // Notify parent component about successful login
         onLoginSuccess?.();
         onClose();
-        // Always navigate to dashboard after successful verification
-        navigate("/dashboard");
+        // Navigate only if requested; otherwise stay on current page
+        if (redirectOnSuccessTo) {
+          navigate(redirectOnSuccessTo);
+        }
       } else {
         toast.error(response.message || "Invalid OTP. Please try again.");
         // Clear any stale user info on failure
         localStorage.removeItem('userId');
         localStorage.removeItem('userName');
+        localStorage.removeItem('userPhoneNumber');
         setOtp("");
       }
     } catch (error) {
