@@ -70,9 +70,6 @@ const Navbar = () => {
             <Link to="/" className="text-sm font-medium transition-colors hover:text-primary">
               Home
             </Link>
-            <Link to="/venues" className="text-sm font-medium transition-colors hover:text-primary">
-              Explore
-            </Link>
             {isLoggedIn && (
               <Link to="/dashboard" className="text-sm font-medium transition-colors hover:text-primary">
                 My Bookings
@@ -115,9 +112,6 @@ const Navbar = () => {
               <DropdownMenuContent align="end" className="w-48 bg-popover">
                 <DropdownMenuItem asChild>
                   <Link to="/" className="cursor-pointer">Home</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/venues" className="cursor-pointer">Explore</Link>
                 </DropdownMenuItem>
                 {isLoggedIn && (
                   <DropdownMenuItem asChild>

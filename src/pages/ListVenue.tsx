@@ -17,7 +17,7 @@ import { X, Upload, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 // Keep in sync with authApi.ts base URL
-const API_BASE_URL = "https://mesothelial-sonya-deferentially.ngrok-free.dev";
+const API_BASE_URL = "https://sportverse-477004.el.r.appspot.com";
 
 const availableSports = ["Cricket", "Badminton"];
 

@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://mesothelial-sonya-deferentially.ngrok-free.dev";
+const API_BASE_URL = "https://sportverse-477004.el.r.appspot.com";
 
 export interface ApiResponse<T = unknown> {
   success: boolean;

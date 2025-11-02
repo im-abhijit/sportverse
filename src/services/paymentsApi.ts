@@ -1,4 +1,4 @@
-const PAYMENTS_API_BASE_URL = "https://mesothelial-sonya-deferentially.ngrok-free.dev";
+const PAYMENTS_API_BASE_URL = "https://sportverse-477004.el.r.appspot.com";
 
 export interface CreateOrderBody {
   amount: number; // amount in rupees; backend may convert to paise
