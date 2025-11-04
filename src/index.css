@@ -9,52 +9,54 @@ All colors MUST be HSL.
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 221 39% 11%;
+    --foreground: 210 40% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 221 39% 11%;
+    --card-foreground: 210 40% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 221 39% 11%;
+    --popover-foreground: 210 40% 15%;
 
-    --primary: 221 83% 53%;
+    --primary: 210 100% 35%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 221 39% 11%;
+    --secondary: 150 30% 95%;
+    --secondary-foreground: 210 40% 15%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 150 20% 96%;
+    --muted-foreground: 210 20% 40%;
 
-    --accent: 48 96% 53%;
-    --accent-foreground: 26 83% 14%;
+    --accent: 45 100% 55%;
+    --accent-foreground: 210 40% 15%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 221 83% 53%;
+    --border: 210 30% 85%;
+    --input: 210 30% 90%;
+    --ring: 210 100% 35%;
 
-    --radius: 1rem;
+    --radius: 0.75rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(221 83% 60%));
-    --gradient-accent: linear-gradient(135deg, hsl(48 96% 53%), hsl(45 93% 58%));
-    --gradient-hero: linear-gradient(135deg, hsl(221 83% 53% / 0.95), hsl(221 83% 43%));
+    --gradient-primary: linear-gradient(135deg, hsl(210 100% 35%), hsl(210 100% 45%));
+    --gradient-accent: linear-gradient(135deg, hsl(45 100% 55%), hsl(35 100% 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(210 100% 35%), hsl(150 70% 40%));
+    --gradient-sporty: linear-gradient(135deg, hsl(210 100% 35%), hsl(150 70% 40%), hsl(45 100% 55%));
     
-    --shadow-sm: 0 1px 2px 0 hsl(221 39% 11% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(221 39% 11% / 0.1);
-    --shadow-lg: 0 10px 15px -3px hsl(221 39% 11% / 0.1);
-    --shadow-xl: 0 20px 25px -5px hsl(221 39% 11% / 0.1);
+    --shadow-sm: 0 2px 4px 0 hsl(210 40% 15% / 0.08);
+    --shadow-md: 0 4px 8px -2px hsl(210 40% 15% / 0.12);
+    --shadow-lg: 0 8px 16px -4px hsl(210 40% 15% / 0.15);
+    --shadow-xl: 0 16px 32px -6px hsl(210 40% 15% / 0.2);
+    --shadow-neo: 8px 8px 0px 0px hsl(210 40% 15% / 0.15);
     
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-background: 150 20% 98%;
+    --sidebar-foreground: 210 40% 15%;
+    --sidebar-primary: 210 100% 35%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-accent: 150 30% 95%;
+    --sidebar-accent-foreground: 210 40% 15%;
+    --sidebar-border: 210 30% 85%;
+    --sidebar-ring: 210 100% 35%;
   }
 
   .dark {
@@ -113,11 +115,11 @@ All colors MUST be HSL.
 
 @layer utilities {
   .hover-lift {
-    @apply transition-all duration-300 hover:scale-105 hover:shadow-lg;
+    @apply transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-neo;
   }
   
   .hover-glow {
-    @apply transition-all duration-300 hover:shadow-xl;
+    @apply transition-all duration-300 hover:shadow-xl hover:ring-2 hover:ring-primary/30;
   }
   
   .gradient-primary {
@@ -130,5 +132,45 @@ All colors MUST be HSL.
   
   .gradient-hero {
     background: var(--gradient-hero);
+  }
+
+  .gradient-sporty {
+    background: var(--gradient-sporty);
+  }
+
+  .shadow-neo {
+    box-shadow: var(--shadow-neo);
+  }
+
+  .hover-neo {
+    @apply transition-all duration-200 hover:shadow-neo hover:-translate-x-1 hover:-translate-y-1;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.5s ease-out;
   }
 }
