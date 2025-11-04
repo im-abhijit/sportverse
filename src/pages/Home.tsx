@@ -51,20 +51,34 @@ const Home = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 gradient-hero opacity-90" />
-        <img
-          src={heroImage}
-          alt="Sports venues"
-          className="absolute inset-0 w-full h-full object-cover mix-blend-overlay"
-        />
-        <div className="relative container mx-auto px-4 py-24 md:py-32">
-          <div className="max-w-3xl mx-auto text-center mb-12 space-y-6">
-            <h1 className="text-4xl md:text-6xl font-bold text-white drop-shadow-lg animate-fade-in">
-              Find & Book Sports Venues Near You
+      {/* Hero Section - Neobrutalist Style */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-[hsl(210,100%,35%)] via-[hsl(150,70%,40%)] to-[hsl(210,100%,45%)]">
+        <div className="absolute inset-0 opacity-20">
+          <img
+            src={heroImage}
+            alt="Sports venues"
+            className="w-full h-full object-cover mix-blend-overlay"
+          />
+        </div>
+        {/* Geometric shapes for neobrutalist feel */}
+        <div className="absolute top-20 right-10 w-32 h-32 bg-[hsl(45,100%,55%)] opacity-30 rotate-12 shadow-neo animate-float" style={{ animationDelay: '0s' }} />
+        <div className="absolute bottom-20 left-10 w-24 h-24 bg-[hsl(150,70%,40%)] opacity-40 -rotate-12 shadow-neo animate-float" style={{ animationDelay: '1.5s' }} />
+        
+        <div className="relative container mx-auto px-4 py-32 md:py-40">
+          <div className="max-w-4xl mx-auto text-center mb-16 space-y-8">
+            <div className="inline-block px-6 py-3 bg-white border-4 border-foreground shadow-neo mb-6 animate-slide-in-right">
+              <span className="text-sm font-black uppercase tracking-wider text-foreground">⚡ Ready to Play</span>
+            </div>
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white leading-tight tracking-tight animate-fade-in">
+              FIND & BOOK
+              <br />
+              <span className="bg-[hsl(45,100%,55%)] text-foreground px-4 py-2 inline-block border-4 border-foreground shadow-neo transform rotate-[-2deg]">
+                SPORTS VENUES
+              </span>
+              <br />
+              NEAR YOU
             </h1>
-            <p className="text-lg md:text-xl text-white/95 drop-shadow-md animate-slide-up">
+            <p className="text-xl md:text-2xl font-bold text-white/95 max-w-2xl mx-auto animate-slide-up">
               Discover premium sports venues for cricket, football, badminton and more
             </p>
           </div>
@@ -109,10 +123,13 @@ const Home = () => {
 
       {/* Venues by City (moved outside Hero) */}
       {city && (
-        <section className="py-16 md:py-24 bg-muted/30">
+        <section className="py-20 md:py-28 bg-gradient-to-b from-background to-[hsl(150,30%,97%)]">
           <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold">Venues in {city}</h2>
+            <div className="flex items-center justify-between mb-16">
+              <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-foreground">
+                Venues in <span className="text-primary">{city}</span>
+              </h2>
+              <div className="hidden md:block w-16 h-16 bg-accent border-4 border-foreground shadow-neo rotate-12" />
             </div>
             {loadingCity ? (
               <p>Loading venues...</p>
@@ -166,20 +183,28 @@ const Home = () => {
 
       {/* Top Venues section removed */}
 
-      {/* Features */}
-      <section className="py-16 md:py-24">
+      {/* Features - Neobrutalist Cards */}
+      <section className="py-20 md:py-28 bg-background relative">
+        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary via-[hsl(150,70%,40%)] to-accent" />
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            Why Choose Sportverse?
+          <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-center mb-16">
+            Why Choose <span className="text-primary">Sportverse?</span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <div key={index} className="text-center space-y-4">
-                <div className="inline-flex p-4 rounded-2xl bg-primary/10">
-                  <feature.icon className="h-8 w-8 text-primary" />
+              <div 
+                key={index} 
+                className="bg-white border-4 border-foreground shadow-neo p-8 hover-neo transition-all group"
+                style={{ 
+                  transform: index % 2 === 0 ? 'rotate(-1deg)' : 'rotate(1deg)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div className="inline-flex p-6 bg-gradient-to-br from-primary to-[hsl(150,70%,40%)] border-4 border-foreground shadow-neo mb-6 group-hover:rotate-6 transition-transform">
+                  <feature.icon className="h-10 w-10 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold">{feature.title}</h3>
-                <p className="text-muted-foreground">{feature.description}</p>
+                <h3 className="text-2xl font-black uppercase mb-4 text-foreground">{feature.title}</h3>
+                <p className="text-muted-foreground font-medium leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
