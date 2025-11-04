@@ -69,7 +69,7 @@ const OwnerDashboard = () => {
               Manage your venues and track performance
             </p>
           </div>
-          <Button variant="hero" size="lg">
+          <Button variant="hero" size="lg" onClick={() => navigate("/list-venue")}>
             <Plus className="h-5 w-5 mr-2" />
             Add New Venue
           </Button>

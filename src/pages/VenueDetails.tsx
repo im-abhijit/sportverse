@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, Wifi, Car, Zap, Users } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Wifi, Car, Zap, Users, MessageCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AuthModal from "@/components/AuthModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { getSlotsByVenueAndDate } from "@/services/slotsApi";
-import { createOrder, verifySignature } from "@/services/paymentsApi";
+// import { createOrder, verifySignature } from "@/services/paymentsApi"; // Commented out for manual payment
 
 const VenueDetails = () => {
   const navigate = useNavigate();
@@ -36,6 +43,16 @@ const VenueDetails = () => {
   });
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [totalAmount, setTotalAmount] = useState(0);
+  
+  // UPI ID - you can replace this with actual UPI ID
+  const UPI_ID = "sportverse@paytm"; // Replace with actual UPI ID
+  
+  // Generate QR code URL based on amount
+  const getQRCodeURL = (amount: number) => {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=Sportverse&am=${amount}&cu=INR`)}`;
+  };
 
   // Always refresh slots on mount with today's local date to avoid stale data
   useEffect(() => {
@@ -49,6 +66,8 @@ const VenueDetails = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // COMMENTED OUT: Razorpay SDK loader
+  /*
   const loadRazorpay = (): Promise<boolean> => {
     return new Promise((resolve) => {
       const existing = document.getElementById("razorpay-sdk");
@@ -64,6 +83,7 @@ const VenueDetails = () => {
       document.body.appendChild(script);
     });
   };
+  */
 
   const venue = useMemo(() => {
     const name = passedVenue?.name || "Venue";
@@ -147,6 +167,19 @@ const VenueDetails = () => {
       setIsAuthModalOpen(true);
       return;
     }
+    
+    // Calculate total amount
+    const amount = selectedSlots.reduce((sum, slotId) => {
+      const s = slots.find((sl) => sl.id === slotId);
+      return sum + (s?.price ?? 0);
+    }, 0);
+    setTotalAmount(amount);
+    
+    // Open payment modal instead of Razorpay
+    setIsPaymentModalOpen(true);
+
+    // COMMENTED OUT: Razorpay integration
+    /*
     try {
       setIsCreatingOrder(true);
       const totalAmount = selectedSlots.reduce((sum, slotId) => {
@@ -230,6 +263,13 @@ const VenueDetails = () => {
     } finally {
       setIsCreatingOrder(false);
     }
+    */
+  };
+
+  const handleWhatsAppClick = () => {
+    const message = encodeURIComponent("Please verify my booking");
+    const whatsappUrl = `https://wa.me/919876543210?text=${message}`; // Replace with actual WhatsApp number
+    window.open(whatsappUrl, "_blank");
   };
 
   return (
@@ -396,7 +436,7 @@ const VenueDetails = () => {
                   onClick={handleBooking}
                   disabled={isCreatingOrder}
                 >
-                  {isCreatingOrder ? "Creating Order..." : "Proceed to Payment"}
+                  {isCreatingOrder ? "Creating Order..." : "Proceed for Booking"}
                 </Button>
               </CardContent>
             </Card>
@@ -413,6 +453,60 @@ const VenueDetails = () => {
         setIsAuthModalOpen(false);
       }}
     />
+    
+    {/* Manual Payment Modal */}
+    <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
+      <DialogContent className="w-[95vw] max-w-sm mx-4 p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg sm:text-xl">Make Payment</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            Complete your booking by making the payment
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 sm:space-y-5 py-2">
+          {/* QR Code */}
+          <div className="flex flex-col items-center space-y-3 sm:space-y-4">
+            <div className="bg-white p-3 sm:p-4 rounded-lg border-2 border-dashed border-primary">
+              <img 
+                src={getQRCodeURL(totalAmount)} 
+                alt="QR Code" 
+                className="w-36 h-36 sm:w-44 sm:h-44 mx-auto"
+              />
+            </div>
+            <div className="text-center space-y-2 w-full">
+              <p className="text-xs sm:text-sm font-semibold text-muted-foreground">Scan QR Code</p>
+              <p className="text-base sm:text-lg font-bold text-foreground">OR</p>
+              <p className="text-xs sm:text-sm font-semibold text-muted-foreground">Pay via UPI ID</p>
+              <div className="bg-muted px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg border">
+                <p className="text-base sm:text-xl font-bold text-primary font-mono break-all">{UPI_ID}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Amount */}
+          <div className="bg-primary/10 px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg text-center">
+            <p className="text-xs sm:text-sm text-muted-foreground">Amount to Pay</p>
+            <p className="text-2xl sm:text-3xl font-bold text-primary">₹{totalAmount}</p>
+          </div>
+
+          {/* Instructions */}
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 sm:p-4">
+            <p className="text-xs sm:text-sm font-medium text-foreground leading-relaxed">
+              📸 Make payment and send screenshot to verify your booking
+            </p>
+          </div>
+
+          {/* WhatsApp Button */}
+          <Button
+            onClick={handleWhatsAppClick}
+            className="w-full bg-green-600 hover:bg-green-700 text-white h-12 sm:h-14 text-sm sm:text-base"
+          >
+            <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+            Send Screenshot on WhatsApp
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 };
