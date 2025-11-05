@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, MapPin, Star, Wifi, Car, Zap, Users, MessageCircle } from "lucide-react";
+import { format } from "date-fns";
 import Navbar from "@/components/Navbar";
 import AuthModal from "@/components/AuthModal";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { getSlotsByVenueAndDate } from "@/services/slotsApi";
+import { cn } from "@/lib/utils";
 // import { createOrder, verifySignature } from "@/services/paymentsApi"; // Commented out for manual payment
 
 const VenueDetails = () => {
@@ -151,7 +153,6 @@ const VenueDetails = () => {
   const handleBooking = async () => {
     // First click: fetch slots for the current date
     if (!hasFetchedSlots && slots.length === 0) {
-      console.log("Fetching slots for first time...");
       await fetchSlots(date);
       setHasFetchedSlots(true);
       return;
@@ -218,15 +219,12 @@ const VenueDetails = () => {
           .join(", ")}`,
         order_id: resp.data.orderId,
         handler: async function (paymentResponse: any) {
-          // Debug: ensure handler is invoked and payload present
-          console.log("Razorpay success response", paymentResponse);
           try {
             const verifyResp = await verifySignature(
               paymentResponse.razorpay_payment_id,
               paymentResponse.razorpay_order_id,
               paymentResponse.razorpay_signature
             );
-            console.log("Verify signature response", verifyResp);
             if (verifyResp.success) {
               toast.success("Payment verified successfully");
               navigate("/dashboard");
@@ -234,7 +232,6 @@ const VenueDetails = () => {
               toast.error(verifyResp.message || "Payment verification failed");
             }
           } catch (err: any) {
-            console.error("Verify signature error", err);
             toast.error(err?.message || "Could not verify payment");
           }
         },
@@ -258,7 +255,6 @@ const VenueDetails = () => {
       });
       razorpay.open();
     } catch (e: any) {
-      console.error("Create order error", e);
       toast.error(e?.message || "Could not create order");
     } finally {
       setIsCreatingOrder(false);
@@ -267,8 +263,50 @@ const VenueDetails = () => {
   };
 
   const handleWhatsAppClick = () => {
-    const message = encodeURIComponent("Please verify my booking");
-    const whatsappUrl = `https://wa.me/919876543210?text=${message}`; // Replace with actual WhatsApp number
+    // Get partner mobile number from venue data
+    const partnerMobileNo = passedVenue?.partnerMobileNo;
+    if (!partnerMobileNo) {
+      toast.error("Venue WhatsApp number not found. Please contact support.");
+      return;
+    }
+
+    // Format date
+    const selectedDate = date || todayLocal;
+    const formattedDate = format(selectedDate, "dd MMM yyyy");
+    
+    // Get selected slot details
+    const selectedSlotDetails = selectedSlots
+      .map((slotId) => {
+        const s = slots.find((sl) => sl.id === slotId);
+        return s ? `${s.time} (₹${s.price})` : null;
+      })
+      .filter((s) => s !== null)
+      .join(", ");
+    
+    // Calculate total amount
+    const totalAmount = selectedSlots.reduce((sum, slotId) => {
+      const s = slots.find((sl) => sl.id === slotId);
+      return sum + (s?.price ?? 0);
+    }, 0);
+    
+    // Build message
+    const message = `Please verify my booking:
+
+Venue: ${venue.name}
+Location: ${venue.location}
+Date: ${formattedDate}
+Slots: ${selectedSlotDetails}
+Total Amount: ₹${totalAmount}
+
+I am sending you the screenshot of the payment.
+
+Please confirm this booking.`;
+    
+    // Clean mobile number for WhatsApp URL (remove + and spaces, keep only digits)
+    const cleanMobile = partnerMobileNo.replace(/[^\d]/g, "");
+    
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${cleanMobile}?text=${encodedMessage}`;
     window.open(whatsappUrl, "_blank");
   };
 
@@ -386,17 +424,29 @@ const VenueDetails = () => {
                             selectedSlots.includes(slot.id) ? "default" : "outline"
                           }
                           disabled={!slot.available}
-                          onClick={() =>
-                            setSelectedSlots((prev) =>
-                              prev.includes(slot.id)
-                                ? prev.filter((t) => t !== slot.id)
-                                : [...prev, slot.id]
-                            )
-                          }
-                          className={`h-auto py-3 ${!slot.available ? "opacity-50 cursor-not-allowed" : ""}`}
-                          title={slot.available ? `₹${slot.price}` : "Booked"}
+                          onClick={() => {
+                            if (slot.available) {
+                              setSelectedSlots((prev) =>
+                                prev.includes(slot.id)
+                                  ? prev.filter((t) => t !== slot.id)
+                                  : [...prev, slot.id]
+                              );
+                            }
+                          }}
+                          className={cn(
+                            "h-auto py-3 transition-all",
+                            !slot.available && "opacity-60 cursor-not-allowed grayscale bg-muted/50 border-muted-foreground/50"
+                          )}
+                          title={slot.available ? `₹${slot.price}` : "Booked - Not Available"}
                         >
-                          {slot.time} (₹{slot.price})
+                          <span className={cn(
+                            !slot.available && "line-through text-muted-foreground"
+                          )}>
+                            {slot.time} (₹{slot.price})
+                          </span>
+                          {!slot.available && (
+                            <span className="ml-2 text-xs text-destructive font-medium">Booked</span>
+                          )}
                         </Button>
                       ))}
                     </div>
@@ -491,8 +541,8 @@ const VenueDetails = () => {
 
           {/* Instructions */}
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 sm:p-4">
-            <p className="text-xs sm:text-sm font-medium text-foreground leading-relaxed">
-              📸 Make payment and send screenshot to verify your booking
+            <p className="text-xs sm:text-sm font-medium text-foreground leading-relaxed text-center">
+              Make the payment of ₹{totalAmount} and send screenshot to the owner
             </p>
           </div>
 

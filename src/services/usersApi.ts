@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://sportverse-477004.el.r.appspot.com";
+import { API_BASE_URL } from "@/config/api";
 
 export interface ApiResponse<T = unknown> {
   success: boolean;

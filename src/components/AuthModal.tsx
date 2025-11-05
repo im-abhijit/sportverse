@@ -86,7 +86,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
         toast.error(response.message || "Failed to send OTP");
       }
     } catch (error) {
-      console.error("OTP generation error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to send OTP. Please try again.");
     } finally {
       setIsLoading(false);
@@ -134,7 +133,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
         setOtp("");
       }
     } catch (error) {
-      console.error("OTP verification error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to verify OTP. Please try again.");
       setOtp("");
     } finally {
@@ -158,7 +156,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
         toast.error(response.message || "Failed to resend OTP");
       }
     } catch (error) {
-      console.error("OTP resend error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to resend OTP. Please try again.");
     } finally {
       setIsLoading(false);

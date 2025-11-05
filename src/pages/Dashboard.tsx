@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin } from "lucide-react";
-import { getBookingsByUser, type BookingResponse } from "@/services/bookingsApi";
+import { getBookingsByUserMobile, type BookingResponse } from "@/services/bookingsApi";
 import {
   Select,
   SelectContent,
@@ -19,6 +20,7 @@ import { toast } from "sonner";
 import { updateUserProfile } from "@/services/usersApi";
 
 const Dashboard = () => {
+  const location = useLocation();
   const [name, setName] = useState("John Doe");
   const [phone, setPhone] = useState("+91 9876543210");
   const [city, setCity] = useState("Bareilly");
@@ -37,13 +39,18 @@ const Dashboard = () => {
     const lsPhone = localStorage.getItem("userPhoneNumber");
     if (lsPhone) setPhone(lsPhone);
 
-    const userId = localStorage.getItem("userId") || "";
-    if (!userId) return;
+    // Load bookings using mobile number
+    const mobileNumber = lsPhone || phone;
+    if (!mobileNumber || mobileNumber.trim().length < 10) {
+      setError("Mobile number not found. Please login again.");
+      return;
+    }
+    
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
-        const resp = await getBookingsByUser(userId);
+        const resp = await getBookingsByUserMobile(mobileNumber);
         if (resp.success && Array.isArray(resp.data)) {
           setBookings(resp.data);
         } else {
@@ -57,7 +64,7 @@ const Dashboard = () => {
       }
     };
     load();
-  }, []);
+  }, [location.pathname, phone]); // Refetch when navigating to dashboard or phone changes
 
   const getStatusColor = (status: string) => {
     switch (status) {

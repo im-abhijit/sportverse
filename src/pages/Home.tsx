@@ -76,17 +76,12 @@ const Home = () => {
           </div>
           <SearchBar
             onSearch={async (enteredCity) => {
-              // Debug: verify Home receives search
-              // eslint-disable-next-line no-console
-              console.log("Home: onSearch city=", enteredCity);
               if (!enteredCity) return;
               setCity(enteredCity);
               setLoadingCity(true);
               setCityMsg("");
               try {
                 const res = await getVenuesByCity(enteredCity);
-                // eslint-disable-next-line no-console
-                console.log("Home: API response", res);
                 const data = res.data;
                 const list = Array.isArray(data) ? data : data ? [data] : [];
                 setCityVenues(list as VenueDto[]);
@@ -99,8 +94,6 @@ const Home = () => {
                   setCityMsg("No venues found");
                 }
               } catch (e) {
-                // eslint-disable-next-line no-console
-                console.error("Home: API error", e);
                 setCityVenues([]);
                 // Surface a friendly message in UI
                 setCityMsg("Could not load venues for this city right now. Please try again.");

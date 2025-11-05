@@ -37,7 +37,7 @@ const Navbar = () => {
   const handleAuthClick = (mode: "login" | "venue") => {
     const currentAuthStatus = localStorage.getItem('isLoggedIn') === 'true';
     if (currentAuthStatus && mode === 'venue') {
-      navigate('/list-venue');
+      navigate('/partner/list-venue');
       return;
     }
     setAuthMode(mode);
