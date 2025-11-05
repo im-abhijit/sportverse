@@ -302,8 +302,25 @@ I am sending you the screenshot of the payment.
 
 Please confirm this booking.`;
     
-    // Clean mobile number for WhatsApp URL (remove + and spaces, keep only digits)
-    const cleanMobile = partnerMobileNo.replace(/[^\d]/g, "");
+    // Clean mobile number for WhatsApp URL and ensure country code is present
+    let cleanMobile = partnerMobileNo.replace(/\s+/g, ""); // Remove spaces first
+    
+    // Remove + if present
+    if (cleanMobile.startsWith("+")) {
+      cleanMobile = cleanMobile.substring(1);
+    }
+    
+    // If number doesn't start with 91 (India country code), add it
+    if (!cleanMobile.startsWith("91")) {
+      // Remove leading 0 if present (some numbers might have 0 before the actual number)
+      if (cleanMobile.startsWith("0")) {
+        cleanMobile = cleanMobile.substring(1);
+      }
+      cleanMobile = "91" + cleanMobile;
+    }
+    
+    // Remove any remaining non-digit characters (just in case)
+    cleanMobile = cleanMobile.replace(/\D/g, "");
     
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${cleanMobile}?text=${encodedMessage}`;
