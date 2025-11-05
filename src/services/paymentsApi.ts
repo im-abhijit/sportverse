@@ -1,4 +1,4 @@
-const PAYMENTS_API_BASE_URL = "https://sportverse-477004.el.r.appspot.com";
+import { API_BASE_URL } from "@/config/api";
 
 export interface CreateOrderBody {
   amount: number; // amount in rupees; backend may convert to paise
@@ -28,7 +28,7 @@ export async function createOrder(
   slotIds: string[],
   date: string
 ): Promise<ApiResponse<CreateOrderData>> {
-  const url = `${PAYMENTS_API_BASE_URL}/api/payments/create-order`;
+  const url = `${API_BASE_URL}/api/payments/create-order`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -65,7 +65,7 @@ export async function verifySignature(
   razorpayOrderId: string,
   razorpaySignature: string
 ): Promise<ApiResponse> {
-  const url = `${PAYMENTS_API_BASE_URL}/api/payments/verify`;
+  const url = `${API_BASE_URL}/api/payments/verify`;
   const res = await fetch(url, {
     method: "POST",
     headers: {

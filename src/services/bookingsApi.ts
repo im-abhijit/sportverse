@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://sportverse-477004.el.r.appspot.com";
+import { API_BASE_URL } from "@/config/api";
 
 export interface BookingVenueResponse {
   id: string;
@@ -23,11 +23,11 @@ export interface TimeSlot {
 export interface BookingResponse {
   id: string;
   venue: BookingVenueResponse;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD format
   slots: TimeSlot[];
   amount: number;
-  bookingStatus?: string; // e.g., PAID/CANCELLED
-  paymentStatus?: string; // e.g., SUCCESS/FAILED
+  bookingStatus?: string; // INITIATED, PAID, or FAILED
+  paymentStatus?: string; // PENDING, SUCCESS, or FAILED
 }
 
 export interface ApiResponse<T = unknown> {
@@ -48,6 +48,61 @@ export async function getBookingsByUser(userId: string): Promise<ApiResponse<Boo
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
+export async function getBookingsByPartner(partnerId: string): Promise<ApiResponse<BookingResponse[]>> {
+  const url = `${API_BASE_URL}/api/bookings/partner/${encodeURIComponent(partnerId)}`;
+  const res = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Non-JSON response: ${text.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
+export async function getBookingsByUserMobile(mobileNumber: string): Promise<ApiResponse<BookingResponse[]>> {
+  // Remove any spaces, remove +91 or +1 prefix, and ensure proper encoding
+  let cleanMobile = mobileNumber.trim().replace(/\s+/g, "");
+  // Remove +91 prefix if present
+  if (cleanMobile.startsWith("+91")) {
+    cleanMobile = cleanMobile.substring(3);
+  }
+  // Remove +1 prefix if present (for other countries, but mainly handling +91)
+  if (cleanMobile.startsWith("+1")) {
+    cleanMobile = cleanMobile.substring(2);
+  }
+  // Remove any remaining + sign if present
+  cleanMobile = cleanMobile.replace(/^\+/, "");
+  
+  const url = `${API_BASE_URL}/api/bookings/user/mobile/${encodeURIComponent(cleanMobile)}`;
+  const res = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Non-JSON response: ${text.slice(0, 200)}`);
   }
   return res.json();
 }

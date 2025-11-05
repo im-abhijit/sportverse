@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://sportverse-477004.el.r.appspot.com";
+import { API_BASE_URL } from "@/config/api";
 
 export interface VenueDto {
   id?: string;
@@ -12,6 +12,7 @@ export interface VenueDto {
   city?: string;
   price?: number;
   rating?: number;
+  partnerMobileNo?: string;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -30,6 +31,26 @@ export async function getVenuesByCity(city: string): Promise<ApiResponse<VenueDt
   });
   if (!res.ok) {
     // Try to read text to aid debugging
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}: ${text?.slice(0, 200)}`);
+  }
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Non-JSON response: ${text?.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
+export async function getVenuesByPartner(partnerId: string): Promise<ApiResponse<VenueDto[]>> {
+  const res = await fetch(`${API_BASE_URL}/api/venues/partner/${encodeURIComponent(partnerId)}`, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`HTTP ${res.status}: ${text?.slice(0, 200)}`);
   }

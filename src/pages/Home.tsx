@@ -62,7 +62,13 @@ const Home = () => {
         <div className="relative container mx-auto px-4 py-24 md:py-32">
           <div className="max-w-3xl mx-auto text-center mb-12 space-y-6">
             <h1 className="text-4xl md:text-6xl font-bold text-white drop-shadow-lg animate-fade-in">
-              Find & Book Sports Venues Near You
+              FIND & BOOK
+              <br />
+              <span className="bg-accent text-accent-foreground px-4 py-2 inline-block rounded-lg transform rotate-[-2deg]">
+                SPORTS VENUES
+              </span>
+              <br />
+              NEAR YOU
             </h1>
             <p className="text-lg md:text-xl text-white/95 drop-shadow-md animate-slide-up">
               Discover premium sports venues for cricket, football, badminton and more
@@ -70,17 +76,12 @@ const Home = () => {
           </div>
           <SearchBar
             onSearch={async (enteredCity) => {
-              // Debug: verify Home receives search
-              // eslint-disable-next-line no-console
-              console.log("Home: onSearch city=", enteredCity);
               if (!enteredCity) return;
               setCity(enteredCity);
               setLoadingCity(true);
               setCityMsg("");
               try {
                 const res = await getVenuesByCity(enteredCity);
-                // eslint-disable-next-line no-console
-                console.log("Home: API response", res);
                 const data = res.data;
                 const list = Array.isArray(data) ? data : data ? [data] : [];
                 setCityVenues(list as VenueDto[]);
@@ -93,8 +94,6 @@ const Home = () => {
                   setCityMsg("No venues found");
                 }
               } catch (e) {
-                // eslint-disable-next-line no-console
-                console.error("Home: API error", e);
                 setCityVenues([]);
                 // Surface a friendly message in UI
                 setCityMsg("Could not load venues for this city right now. Please try again.");

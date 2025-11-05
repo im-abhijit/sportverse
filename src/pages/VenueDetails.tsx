@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, Wifi, Car, Zap, Users } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Wifi, Car, Zap, Users, MessageCircle } from "lucide-react";
+import { format } from "date-fns";
 import Navbar from "@/components/Navbar";
 import AuthModal from "@/components/AuthModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { getSlotsByVenueAndDate } from "@/services/slotsApi";
-import { createOrder, verifySignature } from "@/services/paymentsApi";
+import { cn } from "@/lib/utils";
+// import { createOrder, verifySignature } from "@/services/paymentsApi"; // Commented out for manual payment
 
 const VenueDetails = () => {
   const navigate = useNavigate();
@@ -36,6 +45,16 @@ const VenueDetails = () => {
   });
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [totalAmount, setTotalAmount] = useState(0);
+  
+  // UPI ID - you can replace this with actual UPI ID
+  const UPI_ID = "sportverse@paytm"; // Replace with actual UPI ID
+  
+  // Generate QR code URL based on amount
+  const getQRCodeURL = (amount: number) => {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=Sportverse&am=${amount}&cu=INR`)}`;
+  };
 
   // Always refresh slots on mount with today's local date to avoid stale data
   useEffect(() => {
@@ -49,6 +68,8 @@ const VenueDetails = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // COMMENTED OUT: Razorpay SDK loader
+  /*
   const loadRazorpay = (): Promise<boolean> => {
     return new Promise((resolve) => {
       const existing = document.getElementById("razorpay-sdk");
@@ -64,6 +85,7 @@ const VenueDetails = () => {
       document.body.appendChild(script);
     });
   };
+  */
 
   const venue = useMemo(() => {
     const name = passedVenue?.name || "Venue";
@@ -131,7 +153,6 @@ const VenueDetails = () => {
   const handleBooking = async () => {
     // First click: fetch slots for the current date
     if (!hasFetchedSlots && slots.length === 0) {
-      console.log("Fetching slots for first time...");
       await fetchSlots(date);
       setHasFetchedSlots(true);
       return;
@@ -147,6 +168,19 @@ const VenueDetails = () => {
       setIsAuthModalOpen(true);
       return;
     }
+    
+    // Calculate total amount
+    const amount = selectedSlots.reduce((sum, slotId) => {
+      const s = slots.find((sl) => sl.id === slotId);
+      return sum + (s?.price ?? 0);
+    }, 0);
+    setTotalAmount(amount);
+    
+    // Open payment modal instead of Razorpay
+    setIsPaymentModalOpen(true);
+
+    // COMMENTED OUT: Razorpay integration
+    /*
     try {
       setIsCreatingOrder(true);
       const totalAmount = selectedSlots.reduce((sum, slotId) => {
@@ -185,15 +219,12 @@ const VenueDetails = () => {
           .join(", ")}`,
         order_id: resp.data.orderId,
         handler: async function (paymentResponse: any) {
-          // Debug: ensure handler is invoked and payload present
-          console.log("Razorpay success response", paymentResponse);
           try {
             const verifyResp = await verifySignature(
               paymentResponse.razorpay_payment_id,
               paymentResponse.razorpay_order_id,
               paymentResponse.razorpay_signature
             );
-            console.log("Verify signature response", verifyResp);
             if (verifyResp.success) {
               toast.success("Payment verified successfully");
               navigate("/dashboard");
@@ -201,7 +232,6 @@ const VenueDetails = () => {
               toast.error(verifyResp.message || "Payment verification failed");
             }
           } catch (err: any) {
-            console.error("Verify signature error", err);
             toast.error(err?.message || "Could not verify payment");
           }
         },
@@ -225,11 +255,59 @@ const VenueDetails = () => {
       });
       razorpay.open();
     } catch (e: any) {
-      console.error("Create order error", e);
       toast.error(e?.message || "Could not create order");
     } finally {
       setIsCreatingOrder(false);
     }
+    */
+  };
+
+  const handleWhatsAppClick = () => {
+    // Get partner mobile number from venue data
+    const partnerMobileNo = passedVenue?.partnerMobileNo;
+    if (!partnerMobileNo) {
+      toast.error("Venue WhatsApp number not found. Please contact support.");
+      return;
+    }
+
+    // Format date
+    const selectedDate = date || todayLocal;
+    const formattedDate = format(selectedDate, "dd MMM yyyy");
+    
+    // Get selected slot details
+    const selectedSlotDetails = selectedSlots
+      .map((slotId) => {
+        const s = slots.find((sl) => sl.id === slotId);
+        return s ? `${s.time} (₹${s.price})` : null;
+      })
+      .filter((s) => s !== null)
+      .join(", ");
+    
+    // Calculate total amount
+    const totalAmount = selectedSlots.reduce((sum, slotId) => {
+      const s = slots.find((sl) => sl.id === slotId);
+      return sum + (s?.price ?? 0);
+    }, 0);
+    
+    // Build message
+    const message = `Please verify my booking:
+
+Venue: ${venue.name}
+Location: ${venue.location}
+Date: ${formattedDate}
+Slots: ${selectedSlotDetails}
+Total Amount: ₹${totalAmount}
+
+I am sending you the screenshot of the payment.
+
+Please confirm this booking.`;
+    
+    // Clean mobile number for WhatsApp URL (remove + and spaces, keep only digits)
+    const cleanMobile = partnerMobileNo.replace(/[^\d]/g, "");
+    
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${cleanMobile}?text=${encodedMessage}`;
+    window.open(whatsappUrl, "_blank");
   };
 
   return (
@@ -346,17 +424,29 @@ const VenueDetails = () => {
                             selectedSlots.includes(slot.id) ? "default" : "outline"
                           }
                           disabled={!slot.available}
-                          onClick={() =>
-                            setSelectedSlots((prev) =>
-                              prev.includes(slot.id)
-                                ? prev.filter((t) => t !== slot.id)
-                                : [...prev, slot.id]
-                            )
-                          }
-                          className={`h-auto py-3 ${!slot.available ? "opacity-50 cursor-not-allowed" : ""}`}
-                          title={slot.available ? `₹${slot.price}` : "Booked"}
+                          onClick={() => {
+                            if (slot.available) {
+                              setSelectedSlots((prev) =>
+                                prev.includes(slot.id)
+                                  ? prev.filter((t) => t !== slot.id)
+                                  : [...prev, slot.id]
+                              );
+                            }
+                          }}
+                          className={cn(
+                            "h-auto py-3 transition-all",
+                            !slot.available && "opacity-60 cursor-not-allowed grayscale bg-muted/50 border-muted-foreground/50"
+                          )}
+                          title={slot.available ? `₹${slot.price}` : "Booked - Not Available"}
                         >
-                          {slot.time} (₹{slot.price})
+                          <span className={cn(
+                            !slot.available && "line-through text-muted-foreground"
+                          )}>
+                            {slot.time} (₹{slot.price})
+                          </span>
+                          {!slot.available && (
+                            <span className="ml-2 text-xs text-destructive font-medium">Booked</span>
+                          )}
                         </Button>
                       ))}
                     </div>
@@ -396,7 +486,7 @@ const VenueDetails = () => {
                   onClick={handleBooking}
                   disabled={isCreatingOrder}
                 >
-                  {isCreatingOrder ? "Creating Order..." : "Proceed to Payment"}
+                  {isCreatingOrder ? "Creating Order..." : "Proceed for Booking"}
                 </Button>
               </CardContent>
             </Card>
@@ -413,6 +503,60 @@ const VenueDetails = () => {
         setIsAuthModalOpen(false);
       }}
     />
+    
+    {/* Manual Payment Modal */}
+    <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
+      <DialogContent className="w-[95vw] max-w-sm mx-4 p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg sm:text-xl">Make Payment</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            Complete your booking by making the payment
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 sm:space-y-5 py-2">
+          {/* QR Code */}
+          <div className="flex flex-col items-center space-y-3 sm:space-y-4">
+            <div className="bg-white p-3 sm:p-4 rounded-lg border-2 border-dashed border-primary">
+              <img 
+                src={getQRCodeURL(totalAmount)} 
+                alt="QR Code" 
+                className="w-36 h-36 sm:w-44 sm:h-44 mx-auto"
+              />
+            </div>
+            <div className="text-center space-y-2 w-full">
+              <p className="text-xs sm:text-sm font-semibold text-muted-foreground">Scan QR Code</p>
+              <p className="text-base sm:text-lg font-bold text-foreground">OR</p>
+              <p className="text-xs sm:text-sm font-semibold text-muted-foreground">Pay via UPI ID</p>
+              <div className="bg-muted px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg border">
+                <p className="text-base sm:text-xl font-bold text-primary font-mono break-all">{UPI_ID}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Amount */}
+          <div className="bg-primary/10 px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg text-center">
+            <p className="text-xs sm:text-sm text-muted-foreground">Amount to Pay</p>
+            <p className="text-2xl sm:text-3xl font-bold text-primary">₹{totalAmount}</p>
+          </div>
+
+          {/* Instructions */}
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 sm:p-4">
+            <p className="text-xs sm:text-sm font-medium text-foreground leading-relaxed text-center">
+              Make the payment of ₹{totalAmount} and send screenshot to the owner
+            </p>
+          </div>
+
+          {/* WhatsApp Button */}
+          <Button
+            onClick={handleWhatsAppClick}
+            className="w-full bg-green-600 hover:bg-green-700 text-white h-12 sm:h-14 text-sm sm:text-base"
+          >
+            <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+            Send Screenshot on WhatsApp
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 };

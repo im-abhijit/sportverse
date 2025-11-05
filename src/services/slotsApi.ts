@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://sportverse-477004.el.r.appspot.com";
+import { API_BASE_URL } from "@/config/api";
 
 export interface SlotDto {
   slotId: string;
@@ -38,4 +38,38 @@ export async function getSlotsByVenueAndDate(venueId: string, date: string): Pro
   return res.json();
 }
 
+export interface CreateSlotBody {
+  venueId: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:MM format
+  endTime: string; // HH:MM format
+  price: number;
+}
+
+export interface CreateSlotResponse {
+  slotId: string;
+  venueId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  price: number;
+}
+
+export async function createSlot(slot: CreateSlotBody): Promise<ApiResponse<CreateSlotResponse>> {
+  const url = `${API_BASE_URL}/api/slots`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
+    body: JSON.stringify(slot),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return res.json();
+}
 

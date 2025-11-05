@@ -18,9 +18,6 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
   const [sport, setSport] = useState("");
 
   const triggerSearch = () => {
-    // Debug: verify trigger
-    // eslint-disable-next-line no-console
-    console.log("SearchBar: triggerSearch", { city, sport });
     onSearch?.(city.trim(), sport);
   };
 

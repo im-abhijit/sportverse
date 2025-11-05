@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,19 +16,32 @@ import Navbar from "@/components/Navbar";
 import { X, Upload, Plus } from "lucide-react";
 import { toast } from "sonner";
 
-// Keep in sync with authApi.ts base URL
-const API_BASE_URL = "https://sportverse-477004.el.r.appspot.com";
+import { API_BASE_URL } from "@/config/api";
 
 const availableSports = ["Cricket", "Badminton"];
 
 const ListVenue = () => {
   const navigate = useNavigate();
+  
+  // Check authentication on mount
+  useEffect(() => {
+    const partnerId = localStorage.getItem("partnerId");
+    const isPartnerLoggedIn = localStorage.getItem("isPartnerLoggedIn");
+    
+    if (!partnerId || isPartnerLoggedIn !== "true") {
+      toast.error("Please login to access this page");
+      navigate("/partner/login");
+      return;
+    }
+  }, [navigate]);
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     address: "",
     city: "",
     games: [""],
+    whatsappNumber: "",
   });
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
@@ -86,8 +99,15 @@ const ListVenue = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.description || !formData.address || !formData.city) {
+    if (!formData.name || !formData.description || !formData.address || !formData.city || !formData.whatsappNumber) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // Validate WhatsApp number (should be at least 10 digits)
+    const cleanWhatsApp = formData.whatsappNumber.replace(/\D/g, "");
+    if (cleanWhatsApp.length < 10) {
+      toast.error("Please enter a valid WhatsApp number");
       return;
     }
 
@@ -101,6 +121,11 @@ const ListVenue = () => {
     try {
       const base64Photos = await Promise.all(photos.map((p) => fileToBase64(p)));
 
+      const partnerId = localStorage.getItem("partnerId");
+
+      // Clean WhatsApp number (remove spaces, keep only digits and +)
+      const cleanWhatsApp = formData.whatsappNumber.trim().replace(/\s+/g, "");
+      
       const body = {
         name: formData.name,
         description: formData.description,
@@ -109,15 +134,14 @@ const ListVenue = () => {
         location: `${formData.address}, ${formData.city}`,
         city: formData.city,
         photos: base64Photos,
+        partnerMobileNo: cleanWhatsApp,
+        ...(partnerId ? { partnerId } : {}),
       };
-
-      const userId = localStorage.getItem("userId");
 
       const res = await fetch(`${API_BASE_URL}/api/venues`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(userId ? { "X-User-Id": userId } : {}),
         },
         body: JSON.stringify(body),
       });
@@ -127,7 +151,7 @@ const ListVenue = () => {
 
       if (data?.success) {
         toast.success(data?.message || "Venue submitted successfully!");
-        navigate("/dashboard");
+        navigate("/partner/dashboard");
       } else {
         toast.error(data?.message || "Failed to submit venue");
       }
@@ -209,6 +233,24 @@ const ListVenue = () => {
                   className="mt-2"
                   required
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="whatsappNumber" className="text-base font-semibold">
+                  WhatsApp Number for Booking Verification *
+                </Label>
+                <Input
+                  id="whatsappNumber"
+                  name="whatsappNumber"
+                  type="tel"
+                  value={formData.whatsappNumber}
+                  onChange={handleInputChange}
+                  className="mt-2"
+                  required
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  This number will be used for booking verification and payment screenshots
+                </p>
               </div>
 
               <div>
