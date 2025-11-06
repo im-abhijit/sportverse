@@ -14,6 +14,20 @@ import { getBookingsByPartner, BookingResponse } from "@/services/bookingsApi";
 import { getVenuesByPartner, VenueDto } from "@/services/venuesApi";
 import { format } from "date-fns";
 
+// Helper function to convert base64 string to data URL
+const getImageDataUrl = (base64String: string | undefined): string | undefined => {
+  if (!base64String) return undefined;
+  
+  // If it's already a data URL, return as is
+  if (base64String.startsWith('data:')) {
+    return base64String;
+  }
+  
+  // Otherwise, add the data URL prefix
+  // Try to detect image type from common base64 patterns, default to jpeg
+  return `data:image/jpeg;base64,${base64String}`;
+};
+
 const OwnerDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -353,7 +367,7 @@ const OwnerDashboard = () => {
               {venues.map((venue) => {
                 const venueId = venue.id || "";
                 const venueImage = venue.photos && venue.photos.length > 0 
-                  ? `data:image/jpeg;base64,${venue.photos[0]}` 
+                  ? getImageDataUrl(venue.photos[0])
                   : undefined;
                 const venueLocation = venue.addtress || venue.address || venue.city || "";
 
@@ -454,7 +468,7 @@ const OwnerDashboard = () => {
                 {venues.map((venue) => {
                   const venueId = venue.id || "";
                   const venueImage = venue.photos && venue.photos.length > 0 
-                    ? `data:image/jpeg;base64,${venue.photos[0]}` 
+                    ? getImageDataUrl(venue.photos[0])
                     : undefined;
                   const venueLocation = venue.addtress || venue.address || venue.city || "";
 
@@ -510,8 +524,8 @@ const OwnerDashboard = () => {
                               )}
                             </div>
                             <div className="flex flex-col gap-2 pl-5 ml-5 border-l border-blue-200/50 dark:border-blue-800/50">
-                              <Button 
-                                variant="outline" 
+                    <Button 
+                      variant="outline" 
                                 size="sm"
                                 className="w-full hover:bg-gradient-to-r hover:from-blue-600 hover:to-green-600 hover:text-white hover:border-transparent transition-all"
                                 onClick={() => navigate(`/partner/edit-venue/${venueId}`)}

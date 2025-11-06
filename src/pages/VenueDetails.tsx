@@ -112,10 +112,8 @@ const VenueDetails = () => {
       images,
       description,
       amenities: [
-        { icon: Zap, label: "Floodlights" },
+        { icon: Zap, label: "Flood Lights" },
         { icon: Car, label: "Parking" },
-        { icon: Wifi, label: "WiFi" },
-        { icon: Users, label: "Changing Rooms" },
       ],
     };
   }, [passedVenue]);

@@ -35,10 +35,6 @@ const VenueCard = ({ name, location, price, rating, image, onBookClick }: VenueC
             <Star className="h-4 w-4 fill-accent text-accent" />
             <span className="font-medium">{rating}</span>
           </div>
-          <div className="text-right">
-            <div className="font-bold text-lg text-primary">₹{price}</div>
-            <div className="text-xs text-muted-foreground">per hour</div>
-          </div>
         </div>
         
         <Button className="w-full" onClick={onBookClick}>
