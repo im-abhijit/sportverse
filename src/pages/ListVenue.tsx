@@ -42,9 +42,12 @@ const ListVenue = () => {
     city: "",
     games: [""],
     whatsappNumber: "",
+    upiId: "",
   });
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [qrCodeImage, setQrCodeImage] = useState<File | null>(null);
+  const [qrCodePreview, setQrCodePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (
@@ -88,6 +91,23 @@ const ListVenue = () => {
     setPhotoPreviews(newPreviews);
   };
 
+  const handleQrCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setQrCodeImage(file);
+      const preview = URL.createObjectURL(file);
+      setQrCodePreview(preview);
+    }
+  };
+
+  const removeQrCode = () => {
+    setQrCodeImage(null);
+    if (qrCodePreview) {
+      URL.revokeObjectURL(qrCodePreview);
+    }
+    setQrCodePreview(null);
+  };
+
   const fileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -120,6 +140,7 @@ const ListVenue = () => {
     setIsSubmitting(true);
     try {
       const base64Photos = await Promise.all(photos.map((p) => fileToBase64(p)));
+      const base64QrCode = qrCodeImage ? await fileToBase64(qrCodeImage) : null;
 
       const partnerId = localStorage.getItem("partnerId");
 
@@ -135,6 +156,8 @@ const ListVenue = () => {
         city: formData.city,
         photos: base64Photos,
         partnerMobileNo: cleanWhatsApp,
+        ...(base64QrCode ? { qrCodeImage: base64QrCode } : {}),
+        ...(formData.upiId ? { upiId: formData.upiId.trim() } : {}),
         ...(partnerId ? { partnerId } : {}),
       };
 
@@ -251,6 +274,56 @@ const ListVenue = () => {
                 <p className="text-sm text-muted-foreground mt-1">
                   This number will be used for booking verification and payment screenshots
                 </p>
+              </div>
+
+              <div>
+                <Label htmlFor="upiId" className="text-base font-semibold">
+                  UPI ID
+                </Label>
+                <Input
+                  id="upiId"
+                  name="upiId"
+                  type="text"
+                  placeholder="e.g., yourname@paytm"
+                  value={formData.upiId}
+                  onChange={handleInputChange}
+                  className="mt-2"
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  UPI ID for receiving payments
+                </p>
+              </div>
+
+              <div>
+                <Label className="text-base font-semibold">QR Code Image</Label>
+                <p className="text-sm text-muted-foreground mt-1 mb-3">Upload QR code for payment</p>
+                {qrCodePreview ? (
+                  <div className="relative group">
+                    <img 
+                      src={qrCodePreview} 
+                      alt="QR Code" 
+                      className="w-full max-w-xs h-48 object-contain rounded-lg border" 
+                    />
+                    <button
+                      type="button"
+                      onClick={removeQrCode}
+                      className="absolute top-2 right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center h-48 max-w-xs border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors">
+                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                    <span className="text-sm text-muted-foreground">Upload QR Code</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleQrCodeChange} 
+                      className="hidden" 
+                    />
+                  </label>
+                )}
               </div>
 
               <div>

@@ -11,7 +11,7 @@ import { CalendarIcon, ArrowLeft, Clock, Save } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { getSlotsByVenueAndDate } from "@/services/slotsApi";
+import { getSlotsByVenueAndDate, bulkCreateSlots } from "@/services/slotsApi";
 
 import { API_BASE_URL } from "@/config/api";
 
@@ -248,73 +248,48 @@ const EditVenue = () => {
     const dateStr = format(selectedDate, "yyyy-MM-dd");
 
     try {
-      // TODO: Replace with actual API endpoint when provided
-      // For now, using a dummy API call
-      const slotsToSave = Array.from(selectedSlots).map((slotKey) => {
-        const [startTime, endTime] = slotKey.split("-");
-        return {
-          venueId,
-          date: dateStr,
-          startTime,
-          endTime,
-          price: slotPrices.get(slotKey)!,
-        };
-      });
-
-      // TODO: Replace with actual bulk save API endpoint when provided
-      // For now, we'll call the existing createSlot API for each slot
-      // This is temporary until the bulk save API is provided
-      
-      // Get existing slot keys to avoid creating duplicates
+      // Get existing slot keys to identify which slots are new
       const existingSlotKeys = new Set(
         existingSlots.map((s) => `${s.startTime}-${s.endTime}`)
       );
       
-      // Filter out slots that already exist
-      const newSlotsToSave = slotsToSave.filter(
-        (slot) => !existingSlotKeys.has(`${slot.startTime}-${slot.endTime}`)
-      );
+      // Build slots array for the API request
+      // Include all selected slots (both new and existing) as the API handles merging
+      const slotsToSave = Array.from(selectedSlots).map((slotKey) => {
+        const [startTime, endTime] = slotKey.split("-");
+        // Generate a unique slotId - use the slot key or existing slotId if available
+        const existingSlot = existingSlots.find(
+          (s) => `${s.startTime}-${s.endTime}` === slotKey
+        );
+        const slotId = existingSlot?.slotId || `${startTime}-${endTime}`;
+        
+        return {
+          slotId,
+          startTime,
+          endTime,
+          price: slotPrices.get(slotKey)!,
+          isBooked: false, // New slots are not booked
+        };
+      });
 
-      if (newSlotsToSave.length === 0) {
-        toast.info("All selected slots already exist");
-        setSaving(false);
-        return;
+      // Call the bulk create slots API
+      const response = await bulkCreateSlots({
+        venueId,
+        date: dateStr,
+        slots: slotsToSave,
+      });
+
+      if (response.success) {
+        toast.success(response.message || "Slots saved successfully");
+        // Refresh the slots list to show updated data
+        await fetchExistingSlots();
+      } else {
+        toast.error(response.message || "Failed to save slots");
       }
-
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const slot of newSlotsToSave) {
-        try {
-          const response = await fetch(`${API_BASE_URL}/api/slots`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-              "ngrok-skip-browser-warning": "true",
-            },
-            body: JSON.stringify(slot),
-          });
-
-          if (response.ok) {
-            successCount++;
-          } else {
-            errorCount++;
-          }
-        } catch (error) {
-          errorCount++;
-        }
-      }
-
-      if (successCount > 0) {
-        toast.success(`Successfully saved ${successCount} slot(s)`);
-        fetchExistingSlots(); // Refresh the list
-      }
-      if (errorCount > 0) {
-        toast.error(`Failed to save ${errorCount} slot(s)`);
-      }
-    } catch (error) {
-      toast.error("Failed to save slots. Please try again.");
+    } catch (error: any) {
+      // Handle specific error messages from the API
+      const errorMessage = error?.message || "Failed to save slots. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }

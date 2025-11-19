@@ -73,3 +73,47 @@ export async function createSlot(slot: CreateSlotBody): Promise<ApiResponse<Crea
   return res.json();
 }
 
+export interface BulkCreateSlotsBody {
+  venueId: string;
+  date: string; // YYYY-MM-DD
+  slots: Array<{
+    slotId: string;
+    startTime: string; // HH:mm format
+    endTime: string; // HH:mm format
+    price: number;
+    isBooked?: boolean;
+  }>;
+}
+
+export interface BulkCreateSlotsResponse {
+  id: string;
+  venueId: string;
+  date: string;
+  slots: Array<{
+    slotId: string;
+    startTime: string;
+    endTime: string;
+    price: number;
+    booked: boolean;
+  }>;
+}
+
+export async function bulkCreateSlots(body: BulkCreateSlotsBody): Promise<ApiResponse<BulkCreateSlotsResponse>> {
+  const url = `${API_BASE_URL}/api/slots`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const errorData = await res.json().catch(() => ({ message: text.slice(0, 200) }));
+    throw new Error(errorData.message || `HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return res.json();
+}
+

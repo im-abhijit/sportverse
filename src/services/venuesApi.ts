@@ -13,6 +13,8 @@ export interface VenueDto {
   price?: number;
   rating?: number;
   partnerMobileNo?: string;
+  qrCodeImage?: string;
+  upiId?: string;
 }
 
 export interface ApiResponse<T = unknown> {

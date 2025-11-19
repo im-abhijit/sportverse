@@ -48,12 +48,27 @@ const VenueDetails = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
   
-  // UPI ID - you can replace this with actual UPI ID
-  const UPI_ID = "sportverse@paytm"; // Replace with actual UPI ID
+  // Helper function to convert base64 string to data URL for QR code
+  const getQRCodeDataUrl = (base64String: string | undefined): string | null => {
+    if (!base64String) return null;
+    if (base64String.startsWith('data:')) {
+      return base64String;
+    }
+    return `data:image/jpeg;base64,${base64String}`;
+  };
   
-  // Generate QR code URL based on amount
+  // Get UPI ID from venue data, fallback to default
+  const venueUpiId = passedVenue?.upiId || "sportverse@paytm";
+  
+  // Get QR code image from venue data
+  const venueQrCodeImage = getQRCodeDataUrl(passedVenue?.qrCodeImage);
+  
+  // Generate QR code URL based on amount (fallback if venue QR code not available)
   const getQRCodeURL = (amount: number) => {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=Sportverse&am=${amount}&cu=INR`)}`;
+    if (venueQrCodeImage) {
+      return venueQrCodeImage;
+    }
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${venueUpiId}&pn=Sportverse&am=${amount}&cu=INR`)}`;
   };
 
   // Always refresh slots on mount with today's local date to avoid stale data
@@ -531,19 +546,29 @@ Please confirm this booking.`;
         <div className="space-y-4 sm:space-y-5 py-2">
           {/* QR Code */}
           <div className="flex flex-col items-center space-y-3 sm:space-y-4">
-            <div className="bg-white p-3 sm:p-4 rounded-lg border-2 border-dashed border-primary">
-              <img 
-                src={getQRCodeURL(totalAmount)} 
-                alt="QR Code" 
-                className="w-36 h-36 sm:w-44 sm:h-44 mx-auto"
-              />
-            </div>
+            {venueQrCodeImage ? (
+              <div className="bg-white p-3 sm:p-4 rounded-lg border-2 border-dashed border-primary">
+                <img 
+                  src={venueQrCodeImage} 
+                  alt="QR Code" 
+                  className="w-36 h-36 sm:w-44 sm:h-44 mx-auto"
+                />
+              </div>
+            ) : (
+              <div className="bg-white p-3 sm:p-4 rounded-lg border-2 border-dashed border-primary">
+                <img 
+                  src={getQRCodeURL(totalAmount)} 
+                  alt="QR Code" 
+                  className="w-36 h-36 sm:w-44 sm:h-44 mx-auto"
+                />
+              </div>
+            )}
             <div className="text-center space-y-2 w-full">
               <p className="text-xs sm:text-sm font-semibold text-muted-foreground">Scan QR Code</p>
               <p className="text-base sm:text-lg font-bold text-foreground">OR</p>
               <p className="text-xs sm:text-sm font-semibold text-muted-foreground">Pay via UPI ID</p>
               <div className="bg-muted px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg border">
-                <p className="text-base sm:text-xl font-bold text-primary font-mono break-all">{UPI_ID}</p>
+                <p className="text-base sm:text-xl font-bold text-primary font-mono break-all">{venueUpiId}</p>
               </div>
             </div>
           </div>
