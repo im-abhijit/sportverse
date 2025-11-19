@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { getSlotsByVenueAndDate } from "@/services/slotsApi";
 import { cn } from "@/lib/utils";
+import qrCodeImage from "@/assets/qrcode.jpeg";
 // import { createOrder, verifySignature } from "@/services/paymentsApi"; // Commented out for manual payment
 
 const VenueDetails = () => {
@@ -48,20 +49,9 @@ const VenueDetails = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
   
-  // Helper function to convert base64 string to data URL for QR code
-  const getQRCodeDataUrl = (base64String: string | undefined): string | null => {
-    if (!base64String) return null;
-    if (base64String.startsWith('data:')) {
-      return base64String;
-    }
-    return `data:image/jpeg;base64,${base64String}`;
-  };
-  
-  // Get UPI ID from venue data, fallback to default
-  const venueUpiId = passedVenue?.upiId || "sportverse@paytm";
-  
-  // Get QR code image from venue data
-  const venueQrCodeImage = getQRCodeDataUrl(passedVenue?.qrCodeImage);
+  // Hardcoded QR code image and UPI ID
+  const venueQrCodeImage = qrCodeImage;
+  const venueUpiId = "theskuarearena@okaxis";
   
   // Generate QR code URL based on amount (fallback if venue QR code not available)
   const getQRCodeURL = (amount: number) => {
@@ -551,7 +541,7 @@ Please confirm this booking.`;
                 <img 
                   src={venueQrCodeImage} 
                   alt="QR Code" 
-                  className="w-36 h-36 sm:w-44 sm:h-44 mx-auto"
+                  className="w-36 h-36 sm:w-44 sm:h-44 mx-auto object-contain"
                 />
               </div>
             ) : (
