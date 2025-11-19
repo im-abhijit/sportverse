@@ -117,3 +117,26 @@ export async function bulkCreateSlots(body: BulkCreateSlotsBody): Promise<ApiRes
   return res.json();
 }
 
+export async function deleteSlot(venueId: string, date: string, slotId: string): Promise<ApiResponse<void>> {
+  const url = `${API_BASE_URL}/api/slots?venueId=${encodeURIComponent(venueId)}&date=${encodeURIComponent(date)}&slotId=${encodeURIComponent(slotId)}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const errorData = await res.json().catch(() => ({ message: text.slice(0, 200) }));
+    throw new Error(errorData.message || `HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  // Handle the case where the API returns success: false (slot not found)
+  if (!data.success) {
+    throw new Error(data.message || "Failed to delete slot");
+  }
+  return data;
+}
+

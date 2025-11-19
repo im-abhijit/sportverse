@@ -4,14 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { CalendarIcon, ArrowLeft, Clock, Save } from "lucide-react";
+import { CalendarIcon, ArrowLeft, Clock, Save, Plus, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { getSlotsByVenueAndDate, bulkCreateSlots } from "@/services/slotsApi";
+import { getSlotsByVenueAndDate, bulkCreateSlots, deleteSlot } from "@/services/slotsApi";
 
 import { API_BASE_URL } from "@/config/api";
 
@@ -51,43 +57,33 @@ const EditVenue = () => {
   const [venue, setVenue] = useState<Venue | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [existingSlots, setExistingSlots] = useState<Slot[]>([]);
-  const [selectedSlots, setSelectedSlots] = useState<Set<string>>(new Set());
-  const [slotPrices, setSlotPrices] = useState<Map<string, number>>(new Map());
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
+  
+  // New slot form state
+  const [newSlotStartTime, setNewSlotStartTime] = useState<string>("");
+  const [newSlotDuration, setNewSlotDuration] = useState<string>("30");
+  const [newSlotCustomDuration, setNewSlotCustomDuration] = useState<string>("");
+  const [newSlotPrice, setNewSlotPrice] = useState<string>("");
+  
+  // List of slots to be saved
+  const [slotsToSave, setSlotsToSave] = useState<Array<{
+    startTime: string;
+    endTime: string;
+    duration: number;
+    price: number;
+    id: string;
+  }>>([]);
 
-  // Generate all slots from 4 AM to 12 AM (midnight) - 40 slots of 30 minutes each
-  const allSlots = useMemo(() => {
-    const slots: { startTime: string; endTime: string; key: string }[] = [];
-    for (let hour = 4; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const startHour = String(hour).padStart(2, "0");
-        const startMin = String(minute).padStart(2, "0");
-        const startTime = `${startHour}:${startMin}`;
-        
-        let endHour = hour;
-        let endMin = minute + 30;
-        if (endMin >= 60) {
-          endHour++;
-          endMin = 0;
-        }
-        // Handle midnight (24:00 becomes 00:00)
-        if (endHour >= 24) {
-          endHour = 0;
-        }
-        const endHourStr = String(endHour).padStart(2, "0");
-        const endMinStr = String(endMin).padStart(2, "0");
-        const endTime = `${endHourStr}:${endMinStr}`;
-        
-        slots.push({
-          startTime,
-          endTime,
-          key: `${startTime}-${endTime}`,
-        });
-      }
-    }
-    return slots;
-  }, []);
+  // Helper function to calculate end time from start time and duration
+  const calculateEndTime = (startTime: string, durationMinutes: number): string => {
+    const [hours, minutes] = startTime.split(":").map(Number);
+    const totalMinutes = hours * 60 + minutes + durationMinutes;
+    const endHours = Math.floor(totalMinutes / 60) % 24;
+    const endMins = totalMinutes % 60;
+    return `${String(endHours).padStart(2, "0")}:${String(endMins).padStart(2, "0")}`;
+  };
 
   useEffect(() => {
     if (!venueId) {
@@ -141,84 +137,98 @@ const EditVenue = () => {
           booked: slot.booked || slot.isBooked,
         }));
         setExistingSlots(slots);
-        
-        // Pre-select slots that are already open (not booked) and initialize prices
-        const openSlots = new Set<string>();
-        const pricesMap = new Map<string, number>();
-        slots.forEach((slot: Slot) => {
-          const key = `${slot.startTime}-${slot.endTime}`;
-          if (slot.price !== undefined) {
-            pricesMap.set(key, slot.price);
-          }
-          if (!slot.booked) {
-            openSlots.add(key);
-          }
-        });
-        setSelectedSlots(openSlots);
-        setSlotPrices(pricesMap);
       } else {
         setExistingSlots([]);
-        setSelectedSlots(new Set());
-        setSlotPrices(new Map());
       }
     } catch (error) {
       setExistingSlots([]);
-      setSelectedSlots(new Set());
-      setSlotPrices(new Map());
     } finally {
       setLoadingSlots(false);
     }
   };
 
-  const isSlotBooked = (slotKey: string): boolean => {
-    const slot = existingSlots.find(
-      (s) => `${s.startTime}-${s.endTime}` === slotKey
-    );
-    return !!(slot?.booked || slot?.isBooked);
-  };
-
-  const handleSlotToggle = (slotKey: string) => {
-    // Don't allow toggling booked slots
-    if (isSlotBooked(slotKey)) {
+  // Add a new slot to the list
+  const handleAddSlot = () => {
+    if (!newSlotStartTime) {
+      toast.error("Please select a start time");
       return;
     }
 
-    setSelectedSlots((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(slotKey)) {
-        newSet.delete(slotKey);
+    const duration = newSlotDuration === "custom" 
+      ? parseInt(newSlotCustomDuration) 
+      : parseInt(newSlotDuration);
+
+    if (isNaN(duration) || duration <= 0) {
+      toast.error("Please enter a valid duration");
+      return;
+    }
+
+    if (!newSlotPrice || parseFloat(newSlotPrice) <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    const endTime = calculateEndTime(newSlotStartTime, duration);
+    const slotId = `${Date.now()}-${Math.random()}`;
+
+    setSlotsToSave((prev) => [
+      ...prev,
+      {
+        startTime: newSlotStartTime,
+        endTime,
+        duration,
+        price: parseFloat(newSlotPrice),
+        id: slotId,
+      },
+    ]);
+
+    // Reset form
+    setNewSlotStartTime("");
+    setNewSlotDuration("30");
+    setNewSlotCustomDuration("");
+    setNewSlotPrice("");
+  };
+
+  // Remove a slot from the list
+  const handleRemoveSlot = (id: string) => {
+    setSlotsToSave((prev) => prev.filter((slot) => slot.id !== id));
+  };
+
+  // Delete an existing slot
+  const handleDeleteSlot = async (slotId: string) => {
+    if (!selectedDate || !venueId || !slotId) {
+      toast.error("Missing information to delete slot");
+      return;
+    }
+
+    // Don't allow deleting booked slots
+    const slot = existingSlots.find((s) => s.slotId === slotId);
+    if (slot && (slot.booked || slot.isBooked)) {
+      toast.error("Cannot delete a booked slot");
+      return;
+    }
+
+    if (!confirm("Are you sure you want to delete this slot?")) {
+      return;
+    }
+
+    setDeletingSlotId(slotId);
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+
+    try {
+      const response = await deleteSlot(venueId, dateStr, slotId);
+      if (response.success) {
+        toast.success("Slot deleted successfully");
+        // Refresh the slots list
+        await fetchExistingSlots();
       } else {
-        newSet.add(slotKey);
-        // Price will be set by user via the input field
+        toast.error(response.message || "Failed to delete slot");
       }
-      return newSet;
-    });
-  };
-
-  const handlePriceChange = (slotKey: string, value: string) => {
-    // Allow empty string to clear the input
-    if (value === "" || value === undefined) {
-      setSlotPrices((prev) => {
-        const newPrices = new Map(prev);
-        newPrices.delete(slotKey);
-        return newPrices;
-      });
-      return;
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete slot. Please try again.");
+    } finally {
+      setDeletingSlotId(null);
     }
-    
-    const price = parseFloat(value);
-    if (!isNaN(price) && price >= 0) {
-      setSlotPrices((prev) => {
-        const newPrices = new Map(prev);
-        newPrices.set(slotKey, price);
-        return newPrices;
-      });
-    }
-  };
-
-  const getSlotPrice = (slotKey: string): number | string => {
-    const price = slotPrices.get(slotKey);
-    return price !== undefined ? price : "";
   };
 
   const handleSaveSlots = async () => {
@@ -227,20 +237,8 @@ const EditVenue = () => {
       return;
     }
 
-    if (selectedSlots.size === 0) {
-      toast.error("Please select at least one slot to open");
-      return;
-    }
-
-    // Validate that all selected slots have valid prices
-    const slotsWithoutPrice = Array.from(selectedSlots).filter(
-      (slotKey) => {
-        const price = slotPrices.get(slotKey);
-        return price === undefined || price === null || price <= 0 || isNaN(price);
-      }
-    );
-    if (slotsWithoutPrice.length > 0) {
-      toast.error("Please set a valid price (greater than 0) for all selected slots");
+    if (slotsToSave.length === 0) {
+      toast.error("Please add at least one slot to save");
       return;
     }
 
@@ -248,27 +246,15 @@ const EditVenue = () => {
     const dateStr = format(selectedDate, "yyyy-MM-dd");
 
     try {
-      // Get existing slot keys to identify which slots are new
-      const existingSlotKeys = new Set(
-        existingSlots.map((s) => `${s.startTime}-${s.endTime}`)
-      );
-      
       // Build slots array for the API request
-      // Include all selected slots (both new and existing) as the API handles merging
-      const slotsToSave = Array.from(selectedSlots).map((slotKey) => {
-        const [startTime, endTime] = slotKey.split("-");
-        // Generate a unique slotId - use the slot key or existing slotId if available
-        const existingSlot = existingSlots.find(
-          (s) => `${s.startTime}-${s.endTime}` === slotKey
-        );
-        const slotId = existingSlot?.slotId || `${startTime}-${endTime}`;
-        
+      const slotsForApi = slotsToSave.map((slot) => {
+        const slotId = `${slot.startTime}-${slot.endTime}`;
         return {
           slotId,
-          startTime,
-          endTime,
-          price: slotPrices.get(slotKey)!,
-          isBooked: false, // New slots are not booked
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          price: slot.price,
+          isBooked: false,
         };
       });
 
@@ -276,11 +262,13 @@ const EditVenue = () => {
       const response = await bulkCreateSlots({
         venueId,
         date: dateStr,
-        slots: slotsToSave,
+        slots: slotsForApi,
       });
 
       if (response.success) {
         toast.success(response.message || "Slots saved successfully");
+        // Clear the slots to save list
+        setSlotsToSave([]);
         // Refresh the slots list to show updated data
         await fetchExistingSlots();
       } else {
@@ -295,17 +283,6 @@ const EditVenue = () => {
     }
   };
 
-  const formatTimeSlot = (start: string, end: string) => {
-    return `${start} - ${end}`;
-  };
-
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(":");
-    const hour = parseInt(hours);
-    const period = hour >= 12 ? "PM" : "AM";
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${displayHour}:${minutes} ${period}`;
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -324,7 +301,7 @@ const EditVenue = () => {
             <CardHeader>
               <CardTitle className="text-2xl">Edit Venue: {venue?.name || "Loading..."}</CardTitle>
               <CardDescription>
-                Select and manage time slots for your venue. Each slot is 30 minutes long.
+                Add time slots for your venue. Select start time, duration, and price for each slot.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -356,118 +333,234 @@ const EditVenue = () => {
                 </Popover>
               </div>
 
-              {/* Slots Grid */}
+              {/* Add New Slot Form */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold flex items-center">
                     <Clock className="h-5 w-5 mr-2" />
-                    Time Slots for {format(selectedDate, "PPP")}
+                    Add Time Slots for {format(selectedDate, "PPP")}
                   </h3>
                   {loadingSlots && (
-                    <p className="text-sm text-muted-foreground">Loading...</p>
+                    <p className="text-sm text-muted-foreground">Loading existing slots...</p>
                   )}
                 </div>
 
-                {loadingSlots ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">Loading slots...</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {allSlots.map((slot) => {
-                        const slotKey = slot.key;
-                        const isBooked = isSlotBooked(slotKey);
-                        const isSelected = selectedSlots.has(slotKey);
-                        const isDisabled = isBooked;
-                        const price = getSlotPrice(slotKey);
+                {/* Add Slot Form */}
+                <Card className="border-2 border-dashed">
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      {/* Start Time */}
+                      <div className="space-y-2">
+                        <Label htmlFor="startTime">Start Time (24-hour format)</Label>
+                        <Input
+                          id="startTime"
+                          type="text"
+                          value={newSlotStartTime}
+                          onChange={(e) => {
+                            let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                            if (value.length <= 2) {
+                              setNewSlotStartTime(value);
+                            } else if (value.length <= 4) {
+                              setNewSlotStartTime(value.slice(0, 2) + ':' + value.slice(2));
+                            } else {
+                              setNewSlotStartTime(value.slice(0, 2) + ':' + value.slice(2, 4));
+                            }
+                          }}
+                          onBlur={(e) => {
+                            // Validate and format on blur
+                            const value = e.target.value;
+                            if (value && !value.match(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)) {
+                              // Invalid format, try to fix or clear
+                              const parts = value.split(':');
+                              if (parts.length === 2) {
+                                const hours = parts[0].padStart(2, '0').slice(0, 2);
+                                const minutes = parts[1].padStart(2, '0').slice(0, 2);
+                                const hoursNum = parseInt(hours);
+                                const minutesNum = parseInt(minutes);
+                                if (hoursNum >= 0 && hoursNum <= 23 && minutesNum >= 0 && minutesNum <= 59) {
+                                  setNewSlotStartTime(`${String(hoursNum).padStart(2, '0')}:${String(minutesNum).padStart(2, '0')}`);
+                                } else {
+                                  setNewSlotStartTime('');
+                                }
+                              } else {
+                                setNewSlotStartTime('');
+                              }
+                            }
+                          }}
+                          placeholder="00:00"
+                          maxLength={5}
+                          className="w-full"
+                          style={{ 
+                            fontFamily: 'monospace',
+                            letterSpacing: '0.1em'
+                          }}
+                        />
+                      </div>
 
+                      {/* Duration */}
+                      <div className="space-y-2">
+                        <Label htmlFor="duration">Duration (minutes)</Label>
+                        <Select value={newSlotDuration} onValueChange={setNewSlotDuration}>
+                          <SelectTrigger id="duration">
+                            <SelectValue placeholder="Select duration" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="30">30 minutes</SelectItem>
+                            <SelectItem value="60">60 minutes</SelectItem>
+                            <SelectItem value="90">90 minutes</SelectItem>
+                            <SelectItem value="custom">Custom</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {newSlotDuration === "custom" && (
+                          <Input
+                            type="number"
+                            min="1"
+                            placeholder="Enter minutes"
+                            value={newSlotCustomDuration}
+                            onChange={(e) => setNewSlotCustomDuration(e.target.value)}
+                            className="mt-2"
+                          />
+                        )}
+                      </div>
+
+                      {/* Price */}
+                      <div className="space-y-2">
+                        <Label htmlFor="price">Price (₹)</Label>
+                        <Input
+                          id="price"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Enter price"
+                          value={newSlotPrice}
+                          onChange={(e) => setNewSlotPrice(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+
+                      {/* Add Button */}
+                      <div className="space-y-2">
+                        <Label>&nbsp;</Label>
+                        <Button
+                          onClick={handleAddSlot}
+                          className="w-full"
+                          variant="outline"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Slot
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Slots to Save List */}
+                {slotsToSave.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">
+                      Slots to Save ({slotsToSave.length})
+                    </Label>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {slotsToSave.map((slot) => (
+                        <div
+                          key={slot.id}
+                          className="flex items-center justify-between p-3 border rounded-lg bg-muted/50"
+                        >
+                          <div className="flex-1">
+                            <div className="font-medium">
+                              {slot.startTime} - {slot.endTime}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Duration: {slot.duration} minutes • Price: ₹{slot.price}
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveSlot(slot.id)}
+                            className="ml-2"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Save Button */}
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    {slotsToSave.length} slot(s) ready to save
+                  </p>
+                  <Button
+                    onClick={handleSaveSlots}
+                    disabled={saving || slotsToSave.length === 0}
+                    className="min-w-[120px]"
+                  >
+                    {saving ? (
+                      "Saving..."
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Slots
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Existing Slots Display */}
+                {!loadingSlots && existingSlots.length > 0 && (
+                  <div className="space-y-2 pt-4 border-t">
+                    <Label className="text-base font-semibold">
+                      Existing Slots ({existingSlots.length})
+                    </Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                      {existingSlots.map((slot, index) => {
+                        const isBooked = slot.booked || slot.isBooked;
+                        const isDeleting = deletingSlotId === slot.slotId;
                         return (
                           <div
-                            key={slotKey}
+                            key={index}
                             className={cn(
-                              "relative p-4 rounded-lg border-2 transition-all",
+                              "p-2 border rounded text-sm flex items-center justify-between",
                               isBooked
-                                ? "bg-muted/50 border-muted-foreground/50 opacity-60 grayscale cursor-not-allowed"
-                                : isSelected
-                                ? "bg-primary/10 border-primary cursor-pointer"
-                                : "bg-background border-border cursor-pointer hover:border-primary"
+                                ? "bg-muted/50 opacity-60"
+                                : "bg-background"
                             )}
                           >
-                            <div className="space-y-3">
-                              {/* Checkbox and Time */}
-                              <div className="flex items-start space-x-2">
-                                <Checkbox
-                                  checked={isSelected}
-                                  disabled={isDisabled}
-                                  onCheckedChange={() => !isDisabled && handleSlotToggle(slotKey)}
-                                  className={cn(
-                                    isBooked && "opacity-50",
-                                    "mt-0.5"
-                                  )}
-                                />
-                                <div className="flex-1">
-                                  <div className={cn(
-                                    "text-sm font-medium",
-                                    isBooked && "text-muted-foreground line-through"
-                                  )}>
-                                    {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
-                                  </div>
-                                  {isBooked && (
-                                    <div className="text-xs text-destructive mt-1 font-medium">
-                                      Booked
-                                    </div>
-                                  )}
-                                </div>
+                            <div className="flex-1">
+                              <div className="font-medium">
+                                {slot.startTime} - {slot.endTime}
                               </div>
-
-                              {/* Price Input */}
-                              {isSelected && !isDisabled && (
-                                <div className="space-y-1">
-                                  <Label htmlFor={`price-${slotKey}`} className="text-xs">
-                                    Price (₹)
-                                  </Label>
-                                  <Input
-                                    id={`price-${slotKey}`}
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={price === "" ? "" : price}
-                                    onChange={(e) => handlePriceChange(slotKey, e.target.value)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onFocus={(e) => e.stopPropagation()}
-                                    className="h-8 text-sm"
-                                    placeholder="Enter price"
-                                  />
-                                </div>
-                              )}
+                              <div className="text-xs text-muted-foreground">
+                                {isBooked ? (
+                                  <span className="text-destructive">Booked</span>
+                                ) : (
+                                  <>Price: ₹{slot.price || 0}</>
+                                )}
+                              </div>
                             </div>
+                            {!isBooked && slot.slotId && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteSlot(slot.slotId!)}
+                                disabled={isDeleting}
+                                className="ml-2 h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                {isDeleting ? (
+                                  <Clock className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <X className="h-3 w-3" />
+                                )}
+                              </Button>
+                            )}
                           </div>
                         );
                       })}
                     </div>
-
-                    {/* Selected slots count and save button */}
-                    <div className="flex items-center justify-between pt-4 border-t">
-                      <p className="text-sm text-muted-foreground">
-                        {selectedSlots.size} slot(s) selected
-                      </p>
-                      <Button
-                        onClick={handleSaveSlots}
-                        disabled={saving || selectedSlots.size === 0}
-                        className="min-w-[120px]"
-                      >
-                        {saving ? (
-                          "Saving..."
-                        ) : (
-                          <>
-                            <Save className="h-4 w-4 mr-2" />
-                            Save Slots
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </>
+                  </div>
                 )}
               </div>
             </CardContent>
