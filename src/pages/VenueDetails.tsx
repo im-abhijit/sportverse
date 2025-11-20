@@ -8,6 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -48,6 +56,8 @@ const VenueDetails = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   
   // Hardcoded QR code image and UPI ID
   const venueQrCodeImage = qrCodeImage;
@@ -72,6 +82,19 @@ const VenueDetails = () => {
     refreshToday();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Track carousel slide changes
+  useEffect(() => {
+    if (!carouselApi) {
+      return;
+    }
+
+    setCurrentImageIndex(carouselApi.selectedScrollSnap());
+
+    carouselApi.on("select", () => {
+      setCurrentImageIndex(carouselApi.selectedScrollSnap());
+    });
+  }, [carouselApi]);
 
   // COMMENTED OUT: Razorpay SDK loader
   /*
@@ -344,27 +367,62 @@ Please confirm this booking.`;
           Back
         </Button>
 
-        {/* Image Gallery */}
-        <div className="relative grid grid-cols-1 md:grid-cols-3 gap-4 mb-12 h-[400px]">
-          <div className="md:col-span-2 rounded-2xl overflow-hidden">
-            <img
-              src={venue.images[0]}
-              alt={venue.name}
-              className="block w-full h-full object-cover"
-            />
-          </div>
-          <div className="hidden md:grid grid-rows-2 gap-4">
-            {venue.images.slice(1, 3).map((image, idx) => (
-              <div key={idx} className="rounded-2xl overflow-hidden">
-                <img
-                  src={image}
-                  alt={`${venue.name} ${idx + 2}`}
-                  className="block w-full h-full object-cover"
-                />
+        {/* Image Gallery - Carousel */}
+        {venue.images.length > 0 ? (
+          <div className="relative mb-12">
+            <Carousel 
+              className="w-full"
+              opts={{
+                align: "start",
+                loop: true,
+              }}
+              setApi={setCarouselApi}
+            >
+              <CarouselContent>
+                {venue.images.map((image, index) => (
+                  <CarouselItem key={index}>
+                    <div className="relative w-full h-[400px] md:h-[500px] rounded-2xl overflow-hidden">
+                      <img
+                        src={image}
+                        alt={`${venue.name} - Photo ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              {venue.images.length > 1 && (
+                <>
+                  <CarouselPrevious className="left-4 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800 shadow-lg" />
+                  <CarouselNext className="right-4 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800 shadow-lg" />
+                </>
+              )}
+            </Carousel>
+            {venue.images.length > 1 && (
+              <div className="flex justify-center gap-2 mt-4">
+                {venue.images.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      carouselApi?.scrollTo(index);
+                    }}
+                    className={cn(
+                      "h-2 w-2 rounded-full transition-all",
+                      index === currentImageIndex
+                        ? "bg-primary w-6"
+                        : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                    )}
+                    aria-label={`Go to slide ${index + 1}`}
+                  />
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        </div>
+        ) : (
+          <div className="relative mb-12 h-[400px] md:h-[500px] rounded-2xl overflow-hidden bg-muted flex items-center justify-center">
+            <p className="text-muted-foreground">No images available</p>
+          </div>
+        )}
 
         {/* Title/Address/Description directly under images (desktop and mobile) */}
         <div className="mb-8">
