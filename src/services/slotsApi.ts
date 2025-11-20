@@ -4,6 +4,8 @@ export interface SlotDto {
   slotId: string;
   startTime: string;
   endTime: string;
+  startTimeAmPm?: string; // AM or PM
+  endTimeAmPm?: string; // AM or PM
   price: number;
   booked: boolean;
   isBooked?: boolean;
@@ -78,8 +80,10 @@ export interface BulkCreateSlotsBody {
   date: string; // YYYY-MM-DD
   slots: Array<{
     slotId: string;
-    startTime: string; // HH:mm format
-    endTime: string; // HH:mm format
+    startTime: string; // 12-hour format (e.g., "2:30")
+    endTime: string; // 12-hour format (e.g., "3:30")
+    startTimeAmPm?: string; // AM or PM for start time
+    endTimeAmPm?: string; // AM or PM for end time
     price: number;
     isBooked?: boolean;
   }>;

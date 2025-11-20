@@ -40,11 +40,29 @@ const VenueDetails = () => {
   const [date, setDate] = useState<Date | undefined>(todayLocal);
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]); // stores slotIds
   const [loadingSlots, setLoadingSlots] = useState(false);
+  // Helper function to format time with AM/PM if available
+  const formatSlotTime = (slot: any): string => {
+    const startTime = slot.startTime || "";
+    const endTime = slot.endTime || "";
+    const startAmPm = slot.startTimeAmPm || "";
+    const endAmPm = slot.endTimeAmPm || "";
+    
+    // If AM/PM data is available, use it
+    if (startAmPm || endAmPm) {
+      const startDisplay = startAmPm ? `${startTime} ${startAmPm}` : startTime;
+      const endDisplay = endAmPm ? `${endTime} ${endAmPm}` : endTime;
+      return `${startDisplay} - ${endDisplay}`;
+    }
+    
+    // Otherwise, just show the times as is
+    return `${startTime} - ${endTime}`;
+  };
+
   const [slots, setSlots] = useState<{ id: string; time: string; available: boolean; price: number }[]>(() => {
     const s = (passedVenue?.prefetchedSlots as any[]) || [];
     return s.map((slot) => ({
       id: slot.slotId || slot.id || `${slot.startTime}-${slot.endTime}`,
-      time: `${slot.startTime} - ${slot.endTime}`,
+      time: formatSlotTime(slot),
       available: !(slot.isBooked ?? slot.booked),
       price: slot.price,
     }));
@@ -160,7 +178,7 @@ const VenueDetails = () => {
       const s = res.data?.slots || [];
       const mapped = s.map((slot: any) => ({
         id: slot.slotId || slot.id || `${slot.startTime}-${slot.endTime}`,
-        time: `${slot.startTime} - ${slot.endTime}`,
+        time: formatSlotTime(slot),
         available: !(slot.isBooked ?? slot.booked),
         price: slot.price,
       }));

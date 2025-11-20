@@ -73,6 +73,8 @@ const EditVenue = () => {
   const [slotsToSave, setSlotsToSave] = useState<Array<{
     startTime: string;
     endTime: string;
+    startTimeAmPm: "AM" | "PM";
+    endTimeAmPm: "AM" | "PM";
     duration: number;
     price: number;
     id: string;
@@ -215,13 +217,19 @@ const EditVenue = () => {
       return;
     }
 
-    // Convert to 24-hour format for calculations and API
+    // Convert to 24-hour format for end time calculation
     const startTime24 = convertTo24Hour(newSlotHour, newSlotMinute, newSlotAmPm);
     const endTime24 = calculateEndTime(startTime24, duration);
     
+    // Convert end time to 12-hour format
+    const endTime12 = convertTo12Hour(endTime24);
+    
+    // Create start time in 12-hour format (without AM/PM, as it's sent separately)
+    const startTime12 = `${newSlotHour}:${newSlotMinute.padStart(2, "0")}`;
+    const endTime12Formatted = `${endTime12.hour}:${endTime12.minute}`;
+    
     // Create display time in 12-hour format
     const displayTime = `${newSlotHour}:${newSlotMinute.padStart(2, "0")} ${newSlotAmPm}`;
-    const endTime12 = convertTo12Hour(endTime24);
     const displayEndTime = `${endTime12.hour}:${endTime12.minute} ${endTime12.amPm}`;
     
     const slotId = `${Date.now()}-${Math.random()}`;
@@ -229,8 +237,10 @@ const EditVenue = () => {
     setSlotsToSave((prev) => [
       ...prev,
       {
-        startTime: startTime24,
-        endTime: endTime24,
+        startTime: startTime12, // Store in 12-hour format
+        endTime: endTime12Formatted, // Store in 12-hour format
+        startTimeAmPm: newSlotAmPm,
+        endTimeAmPm: endTime12.amPm,
         duration,
         price: parseFloat(newSlotPrice),
         id: slotId,
@@ -309,8 +319,10 @@ const EditVenue = () => {
         const slotId = `${slot.startTime}-${slot.endTime}`;
         return {
           slotId,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
+          startTime: slot.startTime, // 12-hour format
+          endTime: slot.endTime, // 12-hour format
+          startTimeAmPm: slot.startTimeAmPm,
+          endTimeAmPm: slot.endTimeAmPm,
           price: slot.price,
           isBooked: false,
         };
