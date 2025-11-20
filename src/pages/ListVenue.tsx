@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Navbar from "@/components/Navbar";
-import { X, Upload, Plus } from "lucide-react";
+import { X, Upload, Plus, Zap, Car } from "lucide-react";
 import { toast } from "sonner";
 
 import { API_BASE_URL } from "@/config/api";
@@ -41,9 +41,11 @@ const ListVenue = () => {
     address: "",
     city: "",
     games: [""],
+    amenities: ["Flood Lights", "Parking"],
     whatsappNumber: "",
     upiId: "",
   });
+  const [newAmenity, setNewAmenity] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [qrCodeImage, setQrCodeImage] = useState<File | null>(null);
@@ -72,6 +74,24 @@ const ListVenue = () => {
       const newGames = formData.games.filter((_, i) => i !== index);
       setFormData((prev) => ({ ...prev, games: newGames }));
     }
+  };
+
+  const handleAddAmenity = () => {
+    if (newAmenity.trim()) {
+      const trimmedAmenity = newAmenity.trim();
+      // Check if amenity already exists
+      if (formData.amenities.includes(trimmedAmenity)) {
+        toast.error("This amenity already exists");
+        return;
+      }
+      setFormData((prev) => ({ ...prev, amenities: [...prev.amenities, trimmedAmenity] }));
+      setNewAmenity("");
+    }
+  };
+
+  const handleRemoveAmenity = (index: number) => {
+    const newAmenities = formData.amenities.filter((_, i) => i !== index);
+    setFormData((prev) => ({ ...prev, amenities: newAmenities }));
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,6 +171,7 @@ const ListVenue = () => {
         name: formData.name,
         description: formData.description,
         games: validGames,
+        amenities: formData.amenities,
         // keep backend compatibility: send combined location
         location: `${formData.address}, ${formData.city}`,
         city: formData.city,
@@ -365,6 +386,63 @@ const ListVenue = () => {
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">Add up to 5 games</p>
+              </div>
+
+              <div>
+                <Label className="text-base font-semibold">Amenities</Label>
+                <p className="text-sm text-muted-foreground mt-1 mb-3">Add amenities available at your venue</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {formData.amenities.map((amenity, index) => {
+                    // Map common amenities to icons
+                    const getIcon = (name: string) => {
+                      const lowerName = name.toLowerCase();
+                      if (lowerName.includes("light") || lowerName.includes("flood")) {
+                        return <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />;
+                      }
+                      if (lowerName.includes("parking") || lowerName.includes("car")) {
+                        return <Car className="h-4 w-4 text-blue-600 dark:text-blue-400" />;
+                      }
+                      return null;
+                    };
+
+                    return (
+                      <span
+                        key={index}
+                        className="px-4 py-2 bg-gradient-to-r from-blue-100 to-green-100 dark:from-blue-900 dark:to-green-900 text-blue-700 dark:text-blue-300 rounded-lg text-sm font-medium flex items-center gap-2"
+                      >
+                        {getIcon(amenity)}
+                        {amenity}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4 text-destructive hover:text-destructive"
+                          onClick={() => handleRemoveAmenity(index)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={newAmenity}
+                    onChange={(e) => setNewAmenity(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddAmenity();
+                      }
+                    }}
+                    placeholder="Add an amenity (e.g., WiFi, Changing Rooms)"
+                    className="max-w-xs"
+                  />
+                  <Button type="button" variant="outline" onClick={handleAddAmenity}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Amenity
+                  </Button>
+                </div>
               </div>
 
               <div>

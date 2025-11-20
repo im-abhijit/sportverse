@@ -5,6 +5,7 @@ export interface VenueDto {
   name: string;
   description?: string;
   games?: string[];
+  amenities?: string[];
   addtress?: string; // backend sample typo
   address?: string;
   photos?: string[];

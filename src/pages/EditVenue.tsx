@@ -62,7 +62,9 @@ const EditVenue = () => {
   const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
   
   // New slot form state
-  const [newSlotStartTime, setNewSlotStartTime] = useState<string>("");
+  const [newSlotHour, setNewSlotHour] = useState<string>("");
+  const [newSlotMinute, setNewSlotMinute] = useState<string>("");
+  const [newSlotAmPm, setNewSlotAmPm] = useState<"AM" | "PM">("AM");
   const [newSlotDuration, setNewSlotDuration] = useState<string>("30");
   const [newSlotCustomDuration, setNewSlotCustomDuration] = useState<string>("");
   const [newSlotPrice, setNewSlotPrice] = useState<string>("");
@@ -74,7 +76,39 @@ const EditVenue = () => {
     duration: number;
     price: number;
     id: string;
+    displayTime: string; // 12-hour format for display
   }>>([]);
+
+  // Helper function to convert 12-hour format to 24-hour format
+  const convertTo24Hour = (hour: string, minute: string, amPm: "AM" | "PM"): string => {
+    let hourNum = parseInt(hour) || 0;
+    const minuteNum = parseInt(minute) || 0;
+    
+    if (amPm === "AM") {
+      if (hourNum === 12) {
+        hourNum = 0;
+      }
+    } else {
+      if (hourNum !== 12) {
+        hourNum += 12;
+      }
+    }
+    
+    return `${String(hourNum).padStart(2, "0")}:${String(minuteNum).padStart(2, "0")}`;
+  };
+
+  // Helper function to convert 24-hour format to 12-hour format
+  const convertTo12Hour = (time24: string): { hour: string; minute: string; amPm: "AM" | "PM" } => {
+    const [hours, minutes] = time24.split(":").map(Number);
+    let hour12 = hours % 12;
+    if (hour12 === 0) hour12 = 12;
+    const amPm = hours < 12 ? "AM" : "PM";
+    return {
+      hour: String(hour12),
+      minute: String(minutes).padStart(2, "0"),
+      amPm,
+    };
+  };
 
   // Helper function to calculate end time from start time and duration
   const calculateEndTime = (startTime: string, durationMinutes: number): string => {
@@ -149,8 +183,21 @@ const EditVenue = () => {
 
   // Add a new slot to the list
   const handleAddSlot = () => {
-    if (!newSlotStartTime) {
-      toast.error("Please select a start time");
+    if (!newSlotHour || !newSlotMinute) {
+      toast.error("Please enter a start time");
+      return;
+    }
+
+    const hourNum = parseInt(newSlotHour);
+    const minuteNum = parseInt(newSlotMinute);
+
+    if (isNaN(hourNum) || hourNum < 1 || hourNum > 12) {
+      toast.error("Please enter a valid hour (1-12)");
+      return;
+    }
+
+    if (isNaN(minuteNum) || minuteNum < 0 || minuteNum > 59) {
+      toast.error("Please enter a valid minute (0-59)");
       return;
     }
 
@@ -168,22 +215,33 @@ const EditVenue = () => {
       return;
     }
 
-    const endTime = calculateEndTime(newSlotStartTime, duration);
+    // Convert to 24-hour format for calculations and API
+    const startTime24 = convertTo24Hour(newSlotHour, newSlotMinute, newSlotAmPm);
+    const endTime24 = calculateEndTime(startTime24, duration);
+    
+    // Create display time in 12-hour format
+    const displayTime = `${newSlotHour}:${newSlotMinute.padStart(2, "0")} ${newSlotAmPm}`;
+    const endTime12 = convertTo12Hour(endTime24);
+    const displayEndTime = `${endTime12.hour}:${endTime12.minute} ${endTime12.amPm}`;
+    
     const slotId = `${Date.now()}-${Math.random()}`;
 
     setSlotsToSave((prev) => [
       ...prev,
       {
-        startTime: newSlotStartTime,
-        endTime,
+        startTime: startTime24,
+        endTime: endTime24,
         duration,
         price: parseFloat(newSlotPrice),
         id: slotId,
+        displayTime: `${displayTime} - ${displayEndTime}`,
       },
     ]);
 
     // Reset form
-    setNewSlotStartTime("");
+    setNewSlotHour("");
+    setNewSlotMinute("");
+    setNewSlotAmPm("AM");
     setNewSlotDuration("30");
     setNewSlotCustomDuration("");
     setNewSlotPrice("");
@@ -348,53 +406,46 @@ const EditVenue = () => {
                 {/* Add Slot Form */}
                 <Card className="border-2 border-dashed">
                   <CardContent className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                       {/* Start Time */}
                       <div className="space-y-2">
-                        <Label htmlFor="startTime">Start Time (24-hour format)</Label>
-                        <Input
-                          id="startTime"
-                          type="text"
-                          value={newSlotStartTime}
-                          onChange={(e) => {
-                            let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-                            if (value.length <= 2) {
-                              setNewSlotStartTime(value);
-                            } else if (value.length <= 4) {
-                              setNewSlotStartTime(value.slice(0, 2) + ':' + value.slice(2));
-                            } else {
-                              setNewSlotStartTime(value.slice(0, 2) + ':' + value.slice(2, 4));
-                            }
-                          }}
-                          onBlur={(e) => {
-                            // Validate and format on blur
-                            const value = e.target.value;
-                            if (value && !value.match(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)) {
-                              // Invalid format, try to fix or clear
-                              const parts = value.split(':');
-                              if (parts.length === 2) {
-                                const hours = parts[0].padStart(2, '0').slice(0, 2);
-                                const minutes = parts[1].padStart(2, '0').slice(0, 2);
-                                const hoursNum = parseInt(hours);
-                                const minutesNum = parseInt(minutes);
-                                if (hoursNum >= 0 && hoursNum <= 23 && minutesNum >= 0 && minutesNum <= 59) {
-                                  setNewSlotStartTime(`${String(hoursNum).padStart(2, '0')}:${String(minutesNum).padStart(2, '0')}`);
-                                } else {
-                                  setNewSlotStartTime('');
-                                }
-                              } else {
-                                setNewSlotStartTime('');
-                              }
-                            }
-                          }}
-                          placeholder="00:00"
-                          maxLength={5}
-                          className="w-full"
-                          style={{ 
-                            fontFamily: 'monospace',
-                            letterSpacing: '0.1em'
-                          }}
-                        />
+                        <Label htmlFor="startTime">Start Time</Label>
+                        <div className="flex items-center gap-2">
+                          <Select value={newSlotHour} onValueChange={setNewSlotHour}>
+                            <SelectTrigger className="w-20">
+                              <SelectValue placeholder="--" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) => (
+                                <SelectItem key={hour} value={String(hour)}>
+                                  {hour}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <span className="text-muted-foreground">:</span>
+                          <Select value={newSlotMinute} onValueChange={setNewSlotMinute}>
+                            <SelectTrigger className="w-20">
+                              <SelectValue placeholder="--" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")).map((minute) => (
+                                <SelectItem key={minute} value={minute}>
+                                  {minute}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select value={newSlotAmPm} onValueChange={(value: "AM" | "PM") => setNewSlotAmPm(value)}>
+                            <SelectTrigger className="w-20">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="AM">AM</SelectItem>
+                              <SelectItem value="PM">PM</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
 
                       {/* Duration */}
@@ -468,7 +519,7 @@ const EditVenue = () => {
                         >
                           <div className="flex-1">
                             <div className="font-medium">
-                              {slot.startTime} - {slot.endTime}
+                              {slot.displayTime}
                             </div>
                             <div className="text-sm text-muted-foreground">
                               Duration: {slot.duration} minutes • Price: ₹{slot.price}
@@ -519,6 +570,10 @@ const EditVenue = () => {
                       {existingSlots.map((slot, index) => {
                         const isBooked = slot.booked || slot.isBooked;
                         const isDeleting = deletingSlotId === slot.slotId;
+                        const startTime12 = convertTo12Hour(slot.startTime);
+                        const endTime12 = convertTo12Hour(slot.endTime);
+                        const displayStartTime = `${startTime12.hour}:${startTime12.minute} ${startTime12.amPm}`;
+                        const displayEndTime = `${endTime12.hour}:${endTime12.minute} ${endTime12.amPm}`;
                         return (
                           <div
                             key={index}
@@ -531,7 +586,7 @@ const EditVenue = () => {
                           >
                             <div className="flex-1">
                               <div className="font-medium">
-                                {slot.startTime} - {slot.endTime}
+                                {displayStartTime} - {displayEndTime}
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 {isBooked ? (

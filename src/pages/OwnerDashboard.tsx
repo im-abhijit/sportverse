@@ -406,7 +406,7 @@ const OwnerDashboard = () => {
                             variant="ghost" 
                             size="sm"
                             className="h-7 px-2 text-xs flex-1"
-                            onClick={() => navigate(`/venue/${venueId}`)}
+                            onClick={() => navigate(`/partner/venue/${venueId}`)}
                           >
                             View
                           </Button>
@@ -536,7 +536,7 @@ const OwnerDashboard = () => {
                                 variant="ghost" 
                                 size="sm"
                                 className="w-full hover:bg-gradient-to-r hover:from-blue-100 hover:to-green-100 dark:hover:from-blue-900 dark:hover:to-green-900 hover:text-blue-700 dark:hover:text-blue-300 transition-all"
-                                onClick={() => navigate(`/venue/${venueId}`)}
+                                onClick={() => navigate(`/partner/venue/${venueId}`)}
                               >
                       View
                     </Button>

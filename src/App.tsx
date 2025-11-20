@@ -13,6 +13,7 @@ import EditVenue from "./pages/EditVenue";
 import Booking from "./pages/Booking";
 import ListVenue from "./pages/ListVenue";
 import AddBooking from "./pages/AddBooking";
+import PartnerVenueDetails from "./pages/PartnerVenueDetails";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/partner/login" element={<OwnerLogin />} />
           <Route path="/partner/dashboard" element={<OwnerDashboard />} />
           <Route path="/partner/edit-venue/:venueId" element={<EditVenue />} />
+          <Route path="/partner/venue/:venueId" element={<PartnerVenueDetails />} />
           <Route path="/partner/list-venue" element={<ListVenue />} />
           <Route path="/partner/add-booking" element={<AddBooking />} />
           <Route path="/booking" element={<Booking />} />
