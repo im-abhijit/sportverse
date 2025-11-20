@@ -512,7 +512,7 @@ Please confirm this booking.`;
                   ) : slots.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No slots available for this date.</p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
                       {slots.map((slot, idx) => (
                         <Button
                           key={idx}
@@ -530,18 +530,25 @@ Please confirm this booking.`;
                             }
                           }}
                           className={cn(
-                            "h-auto py-3 transition-all",
+                            "h-auto py-4 px-4 transition-all flex flex-col items-center justify-center gap-1 min-h-[70px]",
                             !slot.available && "opacity-60 cursor-not-allowed grayscale bg-muted/50 border-muted-foreground/50"
                           )}
                           title={slot.available ? `₹${slot.price}` : "Booked - Not Available"}
                         >
                           <span className={cn(
+                            "text-sm font-medium leading-tight",
                             !slot.available && "line-through text-muted-foreground"
                           )}>
-                            {slot.time} (₹{slot.price})
+                            {slot.time}
+                          </span>
+                          <span className={cn(
+                            "text-xs font-semibold",
+                            !slot.available && "line-through text-muted-foreground"
+                          )}>
+                            ₹{slot.price}
                           </span>
                           {!slot.available && (
-                            <span className="ml-2 text-xs text-destructive font-medium">Booked</span>
+                            <span className="text-xs text-destructive font-medium mt-1">Booked</span>
                           )}
                         </Button>
                       ))}
