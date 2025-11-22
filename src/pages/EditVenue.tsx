@@ -26,6 +26,8 @@ interface Venue {
 interface Slot {
   startTime: string;
   endTime: string;
+  startTimeAmPm?: string;
+  endTimeAmPm?: string;
   slotId?: string;
   price?: number;
   booked?: boolean;
@@ -97,19 +99,6 @@ const EditVenue = () => {
     return slots;
   }, []);
 
-  // Helper function to convert 24-hour format to 12-hour format
-  const convertTo12Hour = (time24: string): { hour: string; minute: string; amPm: "AM" | "PM" } => {
-    const [hours, minutes] = time24.split(":").map(Number);
-    let hour12 = hours % 12;
-    if (hour12 === 0) hour12 = 12;
-    const amPm = hours < 12 ? "AM" : "PM";
-    return {
-      hour: String(hour12),
-      minute: String(minutes).padStart(2, "0"),
-      amPm,
-    };
-  };
-
   // Helper function to convert hour and AM/PM to 12-hour format time string
   const getTimeString = (hour24: number, amPm: "AM" | "PM"): string => {
     let hour12 = hour24 % 12;
@@ -122,13 +111,93 @@ const EditVenue = () => {
     const nextHour24 = (hour24 + 1) % 24;
     let hour12 = nextHour24 % 12;
     if (hour12 === 0) hour12 = 12;
-    const amPm = nextHour24 < 12 ? "AM" : "PM";
+    // Fix AM/PM: 0-11 is AM, 12-23 is PM
+    const amPm = nextHour24 >= 12 ? "PM" : "AM";
     return {
       hour24: nextHour24,
       amPm,
       label: `${hour12} ${amPm}`,
     };
   };
+
+  // Helper function to format slot time using backend data (with AM/PM if available)
+  const formatSlotTime = (slot: any): string => {
+    const startTime = slot.startTime || "";
+    const endTime = slot.endTime || "";
+    const startAmPm = slot.startTimeAmPm || "";
+    const endAmPm = slot.endTimeAmPm || "";
+    
+    // If AM/PM data is available from backend, use it directly
+    if (startAmPm || endAmPm) {
+      const startDisplay = startAmPm ? `${startTime} ${startAmPm}` : startTime;
+      const endDisplay = endAmPm ? `${endTime} ${endAmPm}` : endTime;
+      return `${startDisplay} - ${endDisplay}`;
+    }
+    
+    // Fallback: convert from 24-hour format if AM/PM not available
+    const convertTo12Hour = (time24: string): { hour: string; minute: string; amPm: "AM" | "PM" } => {
+      const [hours, minutes] = time24.split(":").map(Number);
+      let hour12 = hours % 12;
+      if (hour12 === 0) hour12 = 12;
+      const amPm = hours < 12 ? "AM" : "PM";
+      return {
+        hour: String(hour12),
+        minute: String(minutes).padStart(2, "0"),
+        amPm,
+      };
+    };
+    
+    const startTime12 = convertTo12Hour(startTime);
+    const endTime12 = convertTo12Hour(endTime);
+    return `${startTime12.hour}:${startTime12.minute} ${startTime12.amPm} - ${endTime12.hour}:${endTime12.minute} ${endTime12.amPm}`;
+  };
+
+  // Helper function to convert 24-hour format to 12-hour format (for fallback)
+  const convertTo12Hour = (time24: string): { hour: string; minute: string; amPm: "AM" | "PM" } => {
+    const [hours, minutes] = time24.split(":").map(Number);
+    let hour12 = hours % 12;
+    if (hour12 === 0) hour12 = 12;
+    const amPm = hours < 12 ? "AM" : "PM";
+    return {
+      hour: String(hour12),
+      minute: String(minutes).padStart(2, "0"),
+      amPm,
+    };
+  };
+
+  // Filter out existing slots from available slots
+  const availableSlots = useMemo(() => {
+    if (existingSlots.length === 0) {
+      return allTimeSlots;
+    }
+
+    return allTimeSlots.filter((slot) => {
+      const endTime = getEndTime(slot.hour24);
+      const startTimeStr = getTimeString(slot.hour24, slot.amPm);
+      const endTimeStr = getTimeString(endTime.hour24, endTime.amPm);
+      
+      // Check if this slot matches any existing slot
+      return !existingSlots.some((existingSlot) => {
+        const existingStart = existingSlot.startTime;
+        const existingEnd = existingSlot.endTime;
+        const existingStartAmPm = existingSlot.startTimeAmPm || "";
+        const existingEndAmPm = existingSlot.endTimeAmPm || "";
+        
+        // Match if times and AM/PM match
+        if (existingSlot.startTimeAmPm && existingSlot.endTimeAmPm) {
+          return (
+            existingStart === startTimeStr &&
+            existingEnd === endTimeStr &&
+            existingStartAmPm === slot.amPm &&
+            existingEndAmPm === endTime.amPm
+          );
+        }
+        
+        // Fallback: match by time strings only
+        return existingStart === startTimeStr && existingEnd === endTimeStr;
+      });
+    });
+  }, [allTimeSlots, existingSlots]);
 
   useEffect(() => {
     if (!venueId) {
@@ -174,9 +243,12 @@ const EditVenue = () => {
     try {
       const response = await getSlotsByVenueAndDate(venueId, dateStr);
       if (response.success && response.data?.slots) {
+        // Use slot data directly from backend, preserving all fields including AM/PM
         const slots = response.data.slots.map((slot: any) => ({
           startTime: slot.startTime,
           endTime: slot.endTime,
+          startTimeAmPm: slot.startTimeAmPm,
+          endTimeAmPm: slot.endTimeAmPm,
           slotId: slot.slotId,
           price: slot.price,
           booked: slot.booked || slot.isBooked,
@@ -316,7 +388,8 @@ const EditVenue = () => {
       // Build slots array for the API request
       const slotsForApi = selectedSlotsList.map((slot) => {
         if (!slot) return null;
-        const slotId = `${slot.startTime}-${slot.endTime}`;
+        // Generate slotId with AM/PM data: e.g., "7:00AM-8:00AM" or "2:00PM-3:00PM"
+        const slotId = `${slot.startTime}${slot.startTimeAmPm}-${slot.endTime}${slot.endTimeAmPm}`;
         return {
           slotId,
           startTime: slot.startTime, // 12-hour format (e.g., "6:00")
@@ -422,7 +495,7 @@ const EditVenue = () => {
                   
                   {/* Slots Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
-                    {allTimeSlots.map((slot) => {
+                    {availableSlots.map((slot) => {
                       const isSelected = selectedSlots[slot.label]?.selected || false;
                       const price = selectedSlots[slot.label]?.price || 0;
                       const endTime = getEndTime(slot.hour24);
@@ -509,10 +582,8 @@ const EditVenue = () => {
                     {existingSlots.map((slot, index) => {
                       const isBooked = slot.booked || slot.isBooked;
                       const isDeleting = deletingSlotId === slot.slotId;
-                      const startTime12 = convertTo12Hour(slot.startTime);
-                      const endTime12 = convertTo12Hour(slot.endTime);
-                      const displayStartTime = `${startTime12.hour}:${startTime12.minute} ${startTime12.amPm}`;
-                      const displayEndTime = `${endTime12.hour}:${endTime12.minute} ${endTime12.amPm}`;
+                      // Use backend data directly with formatSlotTime helper
+                      const displayTime = formatSlotTime(slot);
                       return (
                         <div
                           key={index}
@@ -525,7 +596,7 @@ const EditVenue = () => {
                         >
                           <div className="flex-1">
                             <div className="font-medium">
-                              {displayStartTime} - {displayEndTime}
+                              {displayTime}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {isBooked ? (
