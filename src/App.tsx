@@ -1,47 +1,165 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
-import Venues from "./pages/Venues";
-import VenueDetails from "./pages/VenueDetails";
-import Dashboard from "./pages/Dashboard";
-import OwnerLogin from "./pages/OwnerLogin";
-import OwnerDashboard from "./pages/OwnerDashboard";
-import EditVenue from "./pages/EditVenue";
-import Booking from "./pages/Booking";
-import ListVenue from "./pages/ListVenue";
-import AddBooking from "./pages/AddBooking";
-import PartnerVenueDetails from "./pages/PartnerVenueDetails";
-import NotFound from "./pages/NotFound";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
-const queryClient = new QueryClient();
+// Lazy load pages for code splitting
+const Home = lazy(() => import("./pages/Home"));
+const Venues = lazy(() => import("./pages/Venues"));
+const VenueDetails = lazy(() => import("./pages/VenueDetails"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const OwnerLogin = lazy(() => import("./pages/OwnerLogin"));
+const OwnerDashboard = lazy(() => import("./pages/OwnerDashboard"));
+const EditVenue = lazy(() => import("./pages/EditVenue"));
+const Booking = lazy(() => import("./pages/Booking"));
+const ListVenue = lazy(() => import("./pages/ListVenue"));
+const AddBooking = lazy(() => import("./pages/AddBooking"));
+const PartnerVenueDetails = lazy(() => import("./pages/PartnerVenueDetails"));
+const PartnerBookings = lazy(() => import("./pages/PartnerBookings"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <LoadingSpinner size="lg" text="Loading page..." />
+  </div>
+);
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/venues" element={<Venues />} />
-          <Route path="/venue/:id" element={<VenueDetails />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/partner/login" element={<OwnerLogin />} />
-          <Route path="/partner/dashboard" element={<OwnerDashboard />} />
-          <Route path="/partner/edit-venue/:venueId" element={<EditVenue />} />
-          <Route path="/partner/venue/:venueId" element={<PartnerVenueDetails />} />
-          <Route path="/partner/list-venue" element={<ListVenue />} />
-          <Route path="/partner/add-booking" element={<AddBooking />} />
-          <Route path="/booking" element={<Booking />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <Home />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/venues"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <Venues />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/venue/:id"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <VenueDetails />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <Dashboard />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/partner/login"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <OwnerLogin />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/partner/dashboard"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <OwnerDashboard />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/partner/edit-venue/:venueId"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <EditVenue />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/partner/venue/:venueId"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <PartnerVenueDetails />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/partner/list-venue"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <ListVenue />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/partner/add-booking"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <AddBooking />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/partner/bookings"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <PartnerBookings />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/booking"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <Booking />
+                  </Suspense>
+                }
+              />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route
+                path="*"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <NotFound />
+                  </Suspense>
+                }
+              />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

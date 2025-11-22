@@ -25,7 +25,9 @@ import {
 import { toast } from "sonner";
 import { getSlotsByVenueAndDate } from "@/services/slotsApi";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import qrCodeImage from "@/assets/qrcode.jpeg";
+import { API_BASE_URL } from "@/config/api";
 // import { createOrder, verifySignature } from "@/services/paymentsApi"; // Commented out for manual payment
 
 const VenueDetails = () => {
@@ -66,6 +68,10 @@ const VenueDetails = () => {
       available: !(slot.isBooked ?? slot.booked),
       price: slot.price,
     }));
+  });
+  // Store full slot data for API calls
+  const [fullSlotsData, setFullSlotsData] = useState<any[]>(() => {
+    return (passedVenue?.prefetchedSlots as any[]) || [];
   });
   const [hasFetchedSlots, setHasFetchedSlots] = useState(() => {
     return Array.isArray(passedVenue?.prefetchedSlots) && passedVenue.prefetchedSlots.length > 0;
@@ -176,6 +182,8 @@ const VenueDetails = () => {
     try {
       const res = await getSlotsByVenueAndDate(venueId, iso);
       const s = res.data?.slots || [];
+      // Store full slot data for API calls
+      setFullSlotsData(s);
       const mapped = s.map((slot: any) => ({
         id: slot.slotId || slot.id || `${slot.startTime}-${slot.endTime}`,
         time: formatSlotTime(slot),
@@ -186,6 +194,7 @@ const VenueDetails = () => {
       setSelectedSlots([]);
     } catch (e) {
       setSlots([]);
+      setFullSlotsData([]);
       setSelectedSlots([]);
     } finally {
       setLoadingSlots(false);
@@ -306,7 +315,7 @@ const VenueDetails = () => {
     */
   };
 
-  const handleWhatsAppClick = () => {
+  const handleWhatsAppClick = async () => {
     // Get partner mobile number from venue data
     const partnerMobileNo = passedVenue?.partnerMobileNo;
     if (!partnerMobileNo) {
@@ -314,11 +323,104 @@ const VenueDetails = () => {
       return;
     }
 
+    // Ensure user is logged in
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      toast.error("Please login to continue");
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     // Format date
     const selectedDate = date || todayLocal;
     const formattedDate = format(selectedDate, "dd MMM yyyy");
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
     
-    // Get selected slot details
+    // Get venue ID
+    const venueId = passedVenue?.venueId || passedVenue?.id || (id as string);
+    if (!venueId) {
+      toast.error("Venue ID not found");
+      return;
+    }
+
+    // Get partner ID from venue data (if available)
+    const partnerId = passedVenue?.partnerId;
+
+    // Build slots array from selected slots
+    const slotsArray = selectedSlots.map((slotId) => {
+      // Find the full slot data
+      const fullSlot = fullSlotsData.find((s: any) => {
+        const sId = s.slotId || s.id || `${s.startTime}-${s.endTime}`;
+        return sId === slotId;
+      });
+
+      if (!fullSlot) {
+        // Fallback: try to find from slots array
+        const slot = slots.find((sl) => sl.id === slotId);
+        if (!slot) return null;
+        
+        // Try to reconstruct from slot ID format
+        const parts = slotId.split("-");
+        return {
+          slotId: slotId,
+          startTime: parts[0] || "",
+          endTime: parts[1] || "",
+          price: slot.price,
+          isBooked: true,
+        };
+      }
+
+      return {
+        slotId: fullSlot.slotId || slotId,
+        startTime: fullSlot.startTime,
+        endTime: fullSlot.endTime,
+        price: fullSlot.price,
+        isBooked: true,
+      };
+    }).filter((slot) => slot !== null);
+
+    if (slotsArray.length === 0) {
+      toast.error("No valid slots found");
+      return;
+    }
+
+    // Create booking with PENDING status
+    try {
+      setIsCreatingOrder(true);
+      const body = {
+        ...(partnerId ? { partnerId } : {}),
+        venueId,
+        userId,
+        date: dateStr,
+        status: "PENDING",
+        paymentStatus: "PENDING",
+        slots: slotsArray,
+      };
+
+      const response = await fetch(`${API_BASE_URL}/api/bookings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        toast.error(data.message || "Failed to create booking");
+        return;
+      }
+
+      toast.success("Booking created successfully! Opening WhatsApp...");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create booking. Please try again.");
+      return;
+    } finally {
+      setIsCreatingOrder(false);
+    }
+    
+    // Get selected slot details for WhatsApp message
     const selectedSlotDetails = selectedSlots
       .map((slotId) => {
         const s = slots.find((sl) => sl.id === slotId);
@@ -375,11 +477,12 @@ Please confirm this booking.`;
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 md:py-8">
         <Button
           variant="ghost"
           onClick={() => navigate(-1)}
-          className="mb-6"
+          className="mb-4 md:mb-6 transition-all duration-200 hover:scale-105"
+          aria-label="Go back"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
@@ -387,7 +490,7 @@ Please confirm this booking.`;
 
         {/* Image Gallery - Carousel */}
         {venue.images.length > 0 ? (
-          <div className="relative mb-12">
+          <div className="relative mb-8 md:mb-12">
             <Carousel 
               className="w-full"
               opts={{
@@ -397,9 +500,9 @@ Please confirm this booking.`;
               setApi={setCarouselApi}
             >
               <CarouselContent>
-                {venue.images.map((image, index) => (
+                  {venue.images.map((image, index) => (
                   <CarouselItem key={index}>
-                    <div className="relative w-full h-[400px] md:h-[500px] rounded-2xl overflow-hidden">
+                    <div className="relative w-full h-[300px] sm:h-[400px] md:h-[450px] lg:h-[500px] rounded-2xl overflow-hidden">
                       <img
                         src={image}
                         alt={`${venue.name} - Photo ${index + 1}`}
@@ -443,26 +546,26 @@ Please confirm this booking.`;
         )}
 
         {/* Title/Address/Description directly under images (desktop and mobile) */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-3">{venue.name}</h1>
-          <div className="flex items-center text-muted-foreground mb-4">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 md:mb-3">{venue.name}</h1>
+          <div className="flex items-center text-muted-foreground mb-3 md:mb-4">
             <MapPin className="h-4 w-4 mr-1" />
             {venue.location}
           </div>
           {venue.description && (
-            <p className="text-muted-foreground leading-relaxed">{venue.description}</p>
+            <p className="text-sm md:text-base text-muted-foreground leading-relaxed">{venue.description}</p>
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mt-4">
           {/* Left Column - Venue Info */}
           <div className="lg:col-span-2 space-y-6">
             {/* You can add rating/reviews here below the description if needed */}
 
             <Card>
-              <CardContent className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Amenities</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <CardContent className="p-4 md:p-6">
+                <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Amenities</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                   {venue.amenities.map((amenity, idx) => (
                     <div key={idx} className="flex items-center space-x-2">
                       <amenity.icon className="h-5 w-5 text-primary" />
@@ -476,8 +579,8 @@ Please confirm this booking.`;
 
           {/* Right Column - Booking Widget */}
           <div className="lg:col-span-1">
-            <Card className="sticky top-24">
-              <CardContent className="p-6 space-y-6">
+            <Card className="sticky top-20 md:top-24">
+              <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
                 <div>
                   <div className="text-3xl font-bold text-primary mb-1">
                     ₹{venue.price}
@@ -508,50 +611,61 @@ Please confirm this booking.`;
                   {!hasFetchedSlots && slots.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Click "Book Now" to load slots for today.</p>
                   ) : loadingSlots ? (
-                    <p className="text-sm text-muted-foreground">Loading slots...</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                      {[...Array(6)].map((_, i) => (
+                        <Skeleton key={i} className="h-[70px] w-full" />
+                      ))}
+                    </div>
                   ) : slots.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No slots available for this date.</p>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
-                      {slots.map((slot, idx) => (
-                        <Button
-                          key={idx}
-                          variant={
-                            selectedSlots.includes(slot.id) ? "default" : "outline"
-                          }
-                          disabled={!slot.available}
-                          onClick={() => {
-                            if (slot.available) {
-                              setSelectedSlots((prev) =>
-                                prev.includes(slot.id)
-                                  ? prev.filter((t) => t !== slot.id)
-                                  : [...prev, slot.id]
-                              );
-                            }
-                          }}
-                          className={cn(
-                            "h-auto py-4 px-4 transition-all flex flex-col items-center justify-center gap-1 min-h-[70px]",
-                            !slot.available && "opacity-60 cursor-not-allowed grayscale bg-muted/50 border-muted-foreground/50"
-                          )}
-                          title={slot.available ? `₹${slot.price}` : "Booked - Not Available"}
-                        >
-                          <span className={cn(
-                            "text-sm font-medium leading-tight",
-                            !slot.available && "line-through text-muted-foreground"
-                          )}>
-                            {slot.time}
-                          </span>
-                          <span className={cn(
-                            "text-xs font-semibold",
-                            !slot.available && "line-through text-muted-foreground"
-                          )}>
-                            ₹{slot.price}
-                          </span>
-                          {!slot.available && (
-                            <span className="text-xs text-destructive font-medium mt-1">Booked</span>
-                          )}
-                        </Button>
-                      ))}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
+                      {slots.map((slot, idx) => {
+                        const isSelected = selectedSlots.includes(slot.id);
+                        return (
+                          <Button
+                            key={idx}
+                            variant="outline"
+                            disabled={!slot.available}
+                            onClick={() => {
+                              if (slot.available) {
+                                setSelectedSlots((prev) =>
+                                  prev.includes(slot.id)
+                                    ? prev.filter((t) => t !== slot.id)
+                                    : [...prev, slot.id]
+                                );
+                              }
+                            }}
+                            className={cn(
+                              "h-auto py-4 px-4 transition-all duration-200 flex flex-col items-center justify-center gap-1 min-h-[70px] hover:scale-105",
+                              slot.available
+                                ? isSelected
+                                  ? "bg-green-200 dark:bg-green-900/50 border-green-500 dark:border-green-600 hover:bg-green-300 dark:hover:bg-green-900/70 text-green-950 dark:text-green-50 ring-2 ring-green-400 dark:ring-green-600"
+                                  : "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-950/50 text-green-900 dark:text-green-100"
+                                : "bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-700 opacity-80 cursor-not-allowed text-red-900 dark:text-red-100"
+                            )}
+                            title={slot.available ? `₹${slot.price}` : "Booked - Not Available"}
+                            aria-label={slot.available ? `Select slot ${slot.time} for ₹${slot.price}` : `Slot ${slot.time} is booked and not available`}
+                            aria-pressed={isSelected}
+                          >
+                            <span className={cn(
+                              "text-sm font-medium leading-tight",
+                              !slot.available && "line-through"
+                            )}>
+                              {slot.time}
+                            </span>
+                            <span className={cn(
+                              "text-xs font-semibold",
+                              !slot.available && "line-through"
+                            )}>
+                              ₹{slot.price}
+                            </span>
+                            {!slot.available && (
+                              <span className="text-xs text-red-600 dark:text-red-400 font-medium mt-1">Booked</span>
+                            )}
+                          </Button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -585,9 +699,10 @@ Please confirm this booking.`;
                 <Button
                   variant="hero"
                   size="lg"
-                  className="w-full"
+                  className="w-full transition-all duration-200 hover:scale-105"
                   onClick={handleBooking}
                   disabled={isCreatingOrder}
+                  aria-label="Proceed to booking"
                 >
                   {isCreatingOrder ? "Creating Order..." : "Proceed for Booking"}
                 </Button>
@@ -623,7 +738,7 @@ Please confirm this booking.`;
               <div className="bg-white p-3 sm:p-4 rounded-lg border-2 border-dashed border-primary">
                 <img 
                   src={venueQrCodeImage} 
-                  alt="QR Code" 
+                  alt="QR Code for payment" 
                   className="w-36 h-36 sm:w-44 sm:h-44 mx-auto object-contain"
                 />
               </div>
@@ -631,7 +746,7 @@ Please confirm this booking.`;
               <div className="bg-white p-3 sm:p-4 rounded-lg border-2 border-dashed border-primary">
                 <img 
                   src={getQRCodeURL(totalAmount)} 
-                  alt="QR Code" 
+                  alt="QR Code for payment" 
                   className="w-36 h-36 sm:w-44 sm:h-44 mx-auto"
                 />
               </div>
@@ -662,10 +777,21 @@ Please confirm this booking.`;
           {/* WhatsApp Button */}
           <Button
             onClick={handleWhatsAppClick}
-            className="w-full bg-green-600 hover:bg-green-700 text-white h-12 sm:h-14 text-sm sm:text-base"
+            disabled={isCreatingOrder}
+            className="w-full bg-green-600 hover:bg-green-700 text-white h-12 sm:h-14 text-sm sm:text-base transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Send payment screenshot on WhatsApp"
           >
-            <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-            Send Screenshot on WhatsApp
+            {isCreatingOrder ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-white border-t-transparent mr-2"></div>
+                Creating Booking...
+              </>
+            ) : (
+              <>
+                <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Send Screenshot on WhatsApp
+              </>
+            )}
           </Button>
         </div>
       </DialogContent>

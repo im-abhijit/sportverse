@@ -205,6 +205,8 @@ const AddBooking = () => {
         venueId: selectedVenueId,
         userId,
         date: dateStr,
+        status: "SUCCESS",
+        paymentStatus: "SUCCESS",
         slots: slotsArray.map(slot => ({
           ...slot,
           isBooked: true // Force isBooked to true

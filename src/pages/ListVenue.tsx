@@ -210,15 +210,15 @@ const ListVenue = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="max-w-3xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">List Your Venue</h1>
-            <p className="text-muted-foreground">Share your sports venue with the community</p>
+          <div className="mb-6 md:mb-8">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2">List Your Venue</h1>
+            <p className="text-sm md:text-base text-muted-foreground">Share your sports venue with the community</p>
           </div>
 
-          <Card className="p-6 md:p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <Card className="p-4 md:p-6 lg:p-8">
+            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
               <div>
                 <Label htmlFor="name" className="text-base font-semibold">
                   Venue Name *
@@ -448,7 +448,7 @@ const ListVenue = () => {
               <div>
                 <Label className="text-base font-semibold">Photos</Label>
                 <p className="text-sm text-muted-foreground mt-1 mb-3">Upload up to 3 photos</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                   {photoPreviews.map((preview, index) => (
                     <div key={index} className="relative group">
                       <img src={preview} alt={`Venue ${index + 1}`} className="w-full h-48 object-cover rounded-lg border" />

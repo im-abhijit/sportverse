@@ -107,4 +107,42 @@ export async function getBookingsByUserMobile(mobileNumber: string): Promise<Api
   return res.json();
 }
 
+export async function confirmBooking(bookingId: string): Promise<ApiResponse<null>> {
+  if (!bookingId) {
+    throw new Error("bookingId is required");
+  }
+
+  const url = `${API_BASE_URL}/api/bookings/${encodeURIComponent(bookingId)}/confirm`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    let errorMessage = `HTTP ${res.status}: ${text.slice(0, 200)}`;
+    
+    // Try to parse error response
+    try {
+      const errorData = JSON.parse(text);
+      errorMessage = errorData.message || errorMessage;
+    } catch {
+      // Use default error message
+    }
+    
+    throw new Error(errorMessage);
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Non-JSON response: ${text.slice(0, 200)}`);
+  }
+
+  return res.json();
+}
+
 

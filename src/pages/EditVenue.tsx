@@ -7,13 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { CalendarIcon, ArrowLeft, Clock, Save, Plus, X } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -61,43 +55,47 @@ const EditVenue = () => {
   const [saving, setSaving] = useState(false);
   const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
   
-  // New slot form state
-  const [newSlotHour, setNewSlotHour] = useState<string>("");
-  const [newSlotMinute, setNewSlotMinute] = useState<string>("");
-  const [newSlotAmPm, setNewSlotAmPm] = useState<"AM" | "PM">("AM");
-  const [newSlotDuration, setNewSlotDuration] = useState<string>("30");
-  const [newSlotCustomDuration, setNewSlotCustomDuration] = useState<string>("");
-  const [newSlotPrice, setNewSlotPrice] = useState<string>("");
-  
-  // List of slots to be saved
-  const [slotsToSave, setSlotsToSave] = useState<Array<{
-    startTime: string;
-    endTime: string;
-    startTimeAmPm: "AM" | "PM";
-    endTimeAmPm: "AM" | "PM";
-    duration: number;
-    price: number;
-    id: string;
-    displayTime: string; // 12-hour format for display
-  }>>([]);
+  // Selected slots with prices (key: time slot like "6 AM", value: price and selection state)
+  const [selectedSlots, setSelectedSlots] = useState<Record<string, { price: number; selected: boolean; hour24: number; amPm: "AM" | "PM" }>>({});
 
-  // Helper function to convert 12-hour format to 24-hour format
-  const convertTo24Hour = (hour: string, minute: string, amPm: "AM" | "PM"): string => {
-    let hourNum = parseInt(hour) || 0;
-    const minuteNum = parseInt(minute) || 0;
+  // Generate all time slots from 6 AM to 12 AM (midnight) in 1-hour increments
+  const allTimeSlots = useMemo(() => {
+    const slots: Array<{ label: string; hour24: number; amPm: "AM" | "PM" }> = [];
     
-    if (amPm === "AM") {
-      if (hourNum === 12) {
-        hourNum = 0;
-      }
-    } else {
-      if (hourNum !== 12) {
-        hourNum += 12;
-      }
+    // 6 AM to 11 AM
+    for (let hour = 6; hour < 12; hour++) {
+      slots.push({
+        label: `${hour} AM`,
+        hour24: hour,
+        amPm: "AM",
+      });
     }
     
-    return `${String(hourNum).padStart(2, "0")}:${String(minuteNum).padStart(2, "0")}`;
-  };
+    // 12 PM (noon)
+    slots.push({
+      label: "12 PM",
+      hour24: 12,
+      amPm: "PM",
+    });
+    
+    // 1 PM to 11 PM
+    for (let hour = 1; hour < 12; hour++) {
+      slots.push({
+        label: `${hour} PM`,
+        hour24: hour + 12,
+        amPm: "PM",
+      });
+    }
+    
+    // 12 AM (midnight)
+    slots.push({
+      label: "12 AM",
+      hour24: 0,
+      amPm: "AM",
+    });
+    
+    return slots;
+  }, []);
 
   // Helper function to convert 24-hour format to 12-hour format
   const convertTo12Hour = (time24: string): { hour: string; minute: string; amPm: "AM" | "PM" } => {
@@ -112,13 +110,24 @@ const EditVenue = () => {
     };
   };
 
-  // Helper function to calculate end time from start time and duration
-  const calculateEndTime = (startTime: string, durationMinutes: number): string => {
-    const [hours, minutes] = startTime.split(":").map(Number);
-    const totalMinutes = hours * 60 + minutes + durationMinutes;
-    const endHours = Math.floor(totalMinutes / 60) % 24;
-    const endMins = totalMinutes % 60;
-    return `${String(endHours).padStart(2, "0")}:${String(endMins).padStart(2, "0")}`;
+  // Helper function to convert hour and AM/PM to 12-hour format time string
+  const getTimeString = (hour24: number, amPm: "AM" | "PM"): string => {
+    let hour12 = hour24 % 12;
+    if (hour12 === 0) hour12 = 12;
+    return `${hour12}:00`;
+  };
+
+  // Helper function to get end time (1 hour later)
+  const getEndTime = (hour24: number): { hour24: number; amPm: "AM" | "PM"; label: string } => {
+    const nextHour24 = (hour24 + 1) % 24;
+    let hour12 = nextHour24 % 12;
+    if (hour12 === 0) hour12 = 12;
+    const amPm = nextHour24 < 12 ? "AM" : "PM";
+    return {
+      hour24: nextHour24,
+      amPm,
+      label: `${hour12} ${amPm}`,
+    };
   };
 
   useEffect(() => {
@@ -183,83 +192,44 @@ const EditVenue = () => {
     }
   };
 
-  // Add a new slot to the list
-  const handleAddSlot = () => {
-    if (!newSlotHour || !newSlotMinute) {
-      toast.error("Please enter a start time");
-      return;
-    }
-
-    const hourNum = parseInt(newSlotHour);
-    const minuteNum = parseInt(newSlotMinute);
-
-    if (isNaN(hourNum) || hourNum < 1 || hourNum > 12) {
-      toast.error("Please enter a valid hour (1-12)");
-      return;
-    }
-
-    if (isNaN(minuteNum) || minuteNum < 0 || minuteNum > 59) {
-      toast.error("Please enter a valid minute (0-59)");
-      return;
-    }
-
-    const duration = newSlotDuration === "custom" 
-      ? parseInt(newSlotCustomDuration) 
-      : parseInt(newSlotDuration);
-
-    if (isNaN(duration) || duration <= 0) {
-      toast.error("Please enter a valid duration");
-      return;
-    }
-
-    if (!newSlotPrice || parseFloat(newSlotPrice) <= 0) {
-      toast.error("Please enter a valid price");
-      return;
-    }
-
-    // Convert to 24-hour format for end time calculation
-    const startTime24 = convertTo24Hour(newSlotHour, newSlotMinute, newSlotAmPm);
-    const endTime24 = calculateEndTime(startTime24, duration);
-    
-    // Convert end time to 12-hour format
-    const endTime12 = convertTo12Hour(endTime24);
-    
-    // Create start time in 12-hour format (without AM/PM, as it's sent separately)
-    const startTime12 = `${newSlotHour}:${newSlotMinute.padStart(2, "0")}`;
-    const endTime12Formatted = `${endTime12.hour}:${endTime12.minute}`;
-    
-    // Create display time in 12-hour format
-    const displayTime = `${newSlotHour}:${newSlotMinute.padStart(2, "0")} ${newSlotAmPm}`;
-    const displayEndTime = `${endTime12.hour}:${endTime12.minute} ${endTime12.amPm}`;
-    
-    const slotId = `${Date.now()}-${Math.random()}`;
-
-    setSlotsToSave((prev) => [
-      ...prev,
-      {
-        startTime: startTime12, // Store in 12-hour format
-        endTime: endTime12Formatted, // Store in 12-hour format
-        startTimeAmPm: newSlotAmPm,
-        endTimeAmPm: endTime12.amPm,
-        duration,
-        price: parseFloat(newSlotPrice),
-        id: slotId,
-        displayTime: `${displayTime} - ${displayEndTime}`,
-      },
-    ]);
-
-    // Reset form
-    setNewSlotHour("");
-    setNewSlotMinute("");
-    setNewSlotAmPm("AM");
-    setNewSlotDuration("30");
-    setNewSlotCustomDuration("");
-    setNewSlotPrice("");
+  // Toggle slot selection
+  const handleToggleSlot = (slotLabel: string, hour24: number, amPm: "AM" | "PM") => {
+    setSelectedSlots((prev) => {
+      const isSelected = prev[slotLabel]?.selected || false;
+      if (isSelected) {
+        // Deselect slot
+        const { [slotLabel]: removed, ...rest } = prev;
+        return rest;
+      } else {
+        // Select slot with default price 0
+        return {
+          ...prev,
+          [slotLabel]: {
+            selected: true,
+            price: 0,
+            hour24,
+            amPm,
+          },
+        };
+      }
+    });
   };
 
-  // Remove a slot from the list
-  const handleRemoveSlot = (id: string) => {
-    setSlotsToSave((prev) => prev.filter((slot) => slot.id !== id));
+  // Update price for a selected slot
+  const handlePriceChange = (slotLabel: string, price: string) => {
+    const priceNum = parseFloat(price) || 0;
+    setSelectedSlots((prev) => {
+      if (prev[slotLabel]) {
+        return {
+          ...prev,
+          [slotLabel]: {
+            ...prev[slotLabel],
+            price: priceNum,
+          },
+        };
+      }
+      return prev;
+    });
   };
 
   // Delete an existing slot
@@ -305,8 +275,37 @@ const EditVenue = () => {
       return;
     }
 
-    if (slotsToSave.length === 0) {
-      toast.error("Please add at least one slot to save");
+    // Get all selected slots
+    const selectedSlotsList = Object.entries(selectedSlots)
+      .filter(([_, data]) => data.selected)
+      .map(([label, data]) => {
+        const slot = allTimeSlots.find((s) => s.label === label);
+        if (!slot) return null;
+        
+        const endTime = getEndTime(slot.hour24);
+        const startTimeStr = getTimeString(slot.hour24, slot.amPm);
+        const endTimeStr = getTimeString(endTime.hour24, endTime.amPm);
+        
+        return {
+          slotLabel: label,
+          startTime: startTimeStr,
+          endTime: endTimeStr,
+          startTimeAmPm: slot.amPm,
+          endTimeAmPm: endTime.amPm,
+          price: data.price,
+        };
+      })
+      .filter((slot) => slot !== null);
+
+    if (selectedSlotsList.length === 0) {
+      toast.error("Please select at least one slot to save");
+      return;
+    }
+
+    // Validate that all selected slots have prices > 0
+    const slotsWithoutPrice = selectedSlotsList.filter((slot) => !slot || slot.price <= 0);
+    if (slotsWithoutPrice.length > 0) {
+      toast.error("Please enter a valid price (greater than 0) for all selected slots");
       return;
     }
 
@@ -315,30 +314,31 @@ const EditVenue = () => {
 
     try {
       // Build slots array for the API request
-      const slotsForApi = slotsToSave.map((slot) => {
+      const slotsForApi = selectedSlotsList.map((slot) => {
+        if (!slot) return null;
         const slotId = `${slot.startTime}-${slot.endTime}`;
         return {
           slotId,
-          startTime: slot.startTime, // 12-hour format
-          endTime: slot.endTime, // 12-hour format
+          startTime: slot.startTime, // 12-hour format (e.g., "6:00")
+          endTime: slot.endTime, // 12-hour format (e.g., "7:00")
           startTimeAmPm: slot.startTimeAmPm,
           endTimeAmPm: slot.endTimeAmPm,
           price: slot.price,
           isBooked: false,
         };
-      });
+      }).filter((slot) => slot !== null);
 
       // Call the bulk create slots API
       const response = await bulkCreateSlots({
         venueId,
         date: dateStr,
-        slots: slotsForApi,
+        slots: slotsForApi as any[],
       });
 
       if (response.success) {
         toast.success(response.message || "Slots saved successfully");
-        // Clear the slots to save list
-        setSlotsToSave([]);
+        // Clear the selected slots
+        setSelectedSlots({});
         // Refresh the slots list to show updated data
         await fetchExistingSlots();
       } else {
@@ -356,11 +356,11 @@ const EditVenue = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 md:px-6 py-6 md:py-8">
         <Button
           variant="ghost"
           onClick={() => navigate("/partner/dashboard")}
-          className="mb-6"
+          className="mb-4 md:mb-6"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard
@@ -371,7 +371,7 @@ const EditVenue = () => {
             <CardHeader>
               <CardTitle className="text-2xl">Edit Venue: {venue?.name || "Loading..."}</CardTitle>
               <CardDescription>
-                Add time slots for your venue. Select start time, duration, and price for each slot.
+                Select time slots from 6 AM to 12 AM (1 hour each) and enter the price for each selected slot.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -403,162 +403,88 @@ const EditVenue = () => {
                 </Popover>
               </div>
 
-              {/* Add New Slot Form */}
+              {/* Slot Selection Grid */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold flex items-center">
                     <Clock className="h-5 w-5 mr-2" />
-                    Add Time Slots for {format(selectedDate, "PPP")}
+                    Select Time Slots for {format(selectedDate, "PPP")}
                   </h3>
                   {loadingSlots && (
                     <p className="text-sm text-muted-foreground">Loading existing slots...</p>
                   )}
                 </div>
 
-                {/* Add Slot Form */}
-                <Card className="border-2 border-dashed">
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                      {/* Start Time */}
-                      <div className="space-y-2">
-                        <Label htmlFor="startTime">Start Time</Label>
-                        <div className="flex items-center gap-2">
-                          <Select value={newSlotHour} onValueChange={setNewSlotHour}>
-                            <SelectTrigger className="w-20">
-                              <SelectValue placeholder="--" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) => (
-                                <SelectItem key={hour} value={String(hour)}>
-                                  {hour}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <span className="text-muted-foreground">:</span>
-                          <Select value={newSlotMinute} onValueChange={setNewSlotMinute}>
-                            <SelectTrigger className="w-20">
-                              <SelectValue placeholder="--" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")).map((minute) => (
-                                <SelectItem key={minute} value={minute}>
-                                  {minute}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Select value={newSlotAmPm} onValueChange={(value: "AM" | "PM") => setNewSlotAmPm(value)}>
-                            <SelectTrigger className="w-20">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="AM">AM</SelectItem>
-                              <SelectItem value="PM">PM</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      {/* Duration */}
-                      <div className="space-y-2">
-                        <Label htmlFor="duration">Duration (minutes)</Label>
-                        <Select value={newSlotDuration} onValueChange={setNewSlotDuration}>
-                          <SelectTrigger id="duration">
-                            <SelectValue placeholder="Select duration" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="30">30 minutes</SelectItem>
-                            <SelectItem value="60">60 minutes</SelectItem>
-                            <SelectItem value="90">90 minutes</SelectItem>
-                            <SelectItem value="custom">Custom</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {newSlotDuration === "custom" && (
-                          <Input
-                            type="number"
-                            min="1"
-                            placeholder="Enter minutes"
-                            value={newSlotCustomDuration}
-                            onChange={(e) => setNewSlotCustomDuration(e.target.value)}
-                            className="mt-2"
-                          />
-                        )}
-                      </div>
-
-                      {/* Price */}
-                      <div className="space-y-2">
-                        <Label htmlFor="price">Price (₹)</Label>
-                        <Input
-                          id="price"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Enter price"
-                          value={newSlotPrice}
-                          onChange={(e) => setNewSlotPrice(e.target.value)}
-                          className="w-full"
-                        />
-                      </div>
-
-                      {/* Add Button */}
-                      <div className="space-y-2">
-                        <Label>&nbsp;</Label>
-                        <Button
-                          onClick={handleAddSlot}
-                          className="w-full"
-                          variant="outline"
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Select slots from 6 AM to 12 AM (1 hour each) and enter the price for each selected slot.
+                  </p>
+                  
+                  {/* Slots Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+                    {allTimeSlots.map((slot) => {
+                      const isSelected = selectedSlots[slot.label]?.selected || false;
+                      const price = selectedSlots[slot.label]?.price || 0;
+                      const endTime = getEndTime(slot.hour24);
+                      
+                      return (
+                        <Card
+                          key={slot.label}
+                          className={cn(
+                            "p-3 md:p-4 border-2 transition-all cursor-pointer hover:border-primary",
+                            isSelected ? "border-primary bg-primary/5" : "border-muted"
+                          )}
                         >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Slot
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Slots to Save List */}
-                {slotsToSave.length > 0 && (
-                  <div className="space-y-2">
-                    <Label className="text-base font-semibold">
-                      Slots to Save ({slotsToSave.length})
-                    </Label>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {slotsToSave.map((slot) => (
-                        <div
-                          key={slot.id}
-                          className="flex items-center justify-between p-3 border rounded-lg bg-muted/50"
-                        >
-                          <div className="flex-1">
-                            <div className="font-medium">
-                              {slot.displayTime}
+                          <div className="space-y-3">
+                            {/* Checkbox and Time Label */}
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`slot-${slot.label}`}
+                                checked={isSelected}
+                                onCheckedChange={() => handleToggleSlot(slot.label, slot.hour24, slot.amPm)}
+                              />
+                              <Label
+                                htmlFor={`slot-${slot.label}`}
+                                className="text-sm md:text-base font-medium cursor-pointer flex-1"
+                              >
+                                {slot.label} - {endTime.label}
+                              </Label>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                              Duration: {slot.duration} minutes • Price: ₹{slot.price}
-                            </div>
+                            
+                            {/* Price Input (only shown when selected) */}
+                            {isSelected && (
+                              <div className="space-y-1">
+                                <Label htmlFor={`price-${slot.label}`} className="text-xs text-muted-foreground">
+                                  Price (₹)
+                                </Label>
+                                <Input
+                                  id={`price-${slot.label}`}
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="Enter price"
+                                  value={price > 0 ? price : ""}
+                                  onChange={(e) => handlePriceChange(slot.label, e.target.value)}
+                                  className="w-full text-sm"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemoveSlot(slot.id)}
-                            className="ml-2"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
+                        </Card>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
 
                 {/* Save Button */}
                 <div className="flex items-center justify-between pt-4 border-t">
                   <p className="text-sm text-muted-foreground">
-                    {slotsToSave.length} slot(s) ready to save
+                    {Object.values(selectedSlots).filter((s) => s.selected).length} slot(s) selected
                   </p>
                   <Button
                     onClick={handleSaveSlots}
-                    disabled={saving || slotsToSave.length === 0}
+                    disabled={saving || Object.values(selectedSlots).filter((s) => s.selected).length === 0}
                     className="min-w-[120px]"
                   >
                     {saving ? (
@@ -571,65 +497,65 @@ const EditVenue = () => {
                     )}
                   </Button>
                 </div>
-
-                {/* Existing Slots Display */}
-                {!loadingSlots && existingSlots.length > 0 && (
-                  <div className="space-y-2 pt-4 border-t">
-                    <Label className="text-base font-semibold">
-                      Existing Slots ({existingSlots.length})
-                    </Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                      {existingSlots.map((slot, index) => {
-                        const isBooked = slot.booked || slot.isBooked;
-                        const isDeleting = deletingSlotId === slot.slotId;
-                        const startTime12 = convertTo12Hour(slot.startTime);
-                        const endTime12 = convertTo12Hour(slot.endTime);
-                        const displayStartTime = `${startTime12.hour}:${startTime12.minute} ${startTime12.amPm}`;
-                        const displayEndTime = `${endTime12.hour}:${endTime12.minute} ${endTime12.amPm}`;
-                        return (
-                          <div
-                            key={index}
-                            className={cn(
-                              "p-2 border rounded text-sm flex items-center justify-between",
-                              isBooked
-                                ? "bg-muted/50 opacity-60"
-                                : "bg-background"
-                            )}
-                          >
-                            <div className="flex-1">
-                              <div className="font-medium">
-                                {displayStartTime} - {displayEndTime}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {isBooked ? (
-                                  <span className="text-destructive">Booked</span>
-                                ) : (
-                                  <>Price: ₹{slot.price || 0}</>
-                                )}
-                              </div>
-                            </div>
-                            {!isBooked && slot.slotId && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteSlot(slot.slotId!)}
-                                disabled={isDeleting}
-                                className="ml-2 h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                {isDeleting ? (
-                                  <Clock className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <X className="h-3 w-3" />
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
+
+              {/* Existing Slots Display */}
+              {!loadingSlots && existingSlots.length > 0 && (
+                <div className="space-y-2 pt-4 border-t">
+                  <Label className="text-base font-semibold">
+                    Existing Slots ({existingSlots.length})
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
+                    {existingSlots.map((slot, index) => {
+                      const isBooked = slot.booked || slot.isBooked;
+                      const isDeleting = deletingSlotId === slot.slotId;
+                      const startTime12 = convertTo12Hour(slot.startTime);
+                      const endTime12 = convertTo12Hour(slot.endTime);
+                      const displayStartTime = `${startTime12.hour}:${startTime12.minute} ${startTime12.amPm}`;
+                      const displayEndTime = `${endTime12.hour}:${endTime12.minute} ${endTime12.amPm}`;
+                      return (
+                        <div
+                          key={index}
+                          className={cn(
+                            "p-2 border rounded text-sm flex items-center justify-between",
+                            isBooked
+                              ? "bg-muted/50 opacity-60"
+                              : "bg-background"
+                          )}
+                        >
+                          <div className="flex-1">
+                            <div className="font-medium">
+                              {displayStartTime} - {displayEndTime}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {isBooked ? (
+                                <span className="text-destructive">Booked</span>
+                              ) : (
+                                <>Price: ₹{slot.price || 0}</>
+                              )}
+                            </div>
+                          </div>
+                          {!isBooked && slot.slotId && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteSlot(slot.slotId!)}
+                              disabled={isDeleting}
+                              className="ml-2 h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              {isDeleting ? (
+                                <Clock className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <X className="h-3 w-3" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

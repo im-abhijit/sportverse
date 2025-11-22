@@ -131,4 +131,14 @@ All colors MUST be HSL.
   .gradient-hero {
     background: var(--gradient-hero);
   }
+
+  /* Smooth page transitions */
+  .page-transition {
+    @apply animate-in fade-in slide-in-from-bottom-4 duration-300;
+  }
+
+  /* Optimized image loading */
+  img {
+    @apply transition-opacity duration-300;
+  }
 }

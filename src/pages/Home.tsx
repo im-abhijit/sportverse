@@ -3,10 +3,14 @@ import { Users, Zap, Shield } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import SearchBar from "@/components/SearchBar";
 import VenueCard from "@/components/VenueCard";
-import { useEffect, useState } from "react";
+import { VenueCardSkeleton } from "@/components/VenueCardSkeleton";
+import { EmptyState } from "@/components/EmptyState";
+import { useEffect, useState, useCallback } from "react";
 import { getVenuesByCity, type VenueDto } from "@/services/venuesApi";
 import { getSlotsByVenueAndDate } from "@/services/slotsApi";
 import heroImage from "@/assets/hero-sports.jpg";
+import { Calendar } from "lucide-react";
+import { getVenueImage } from "@/utils/imageUtils";
 
 // In-memory cache for last search within SPA navigation (resets on full reload)
 let lastSearchCityMemory: string = "";
@@ -48,7 +52,7 @@ const Home = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background page-transition">
       <Navbar />
 
       {/* Hero Section */}
@@ -59,9 +63,9 @@ const Home = () => {
           alt="Sports venues"
           className="absolute inset-0 w-full h-full object-cover mix-blend-overlay"
         />
-        <div className="relative container mx-auto px-4 py-24 md:py-32">
-          <div className="max-w-3xl mx-auto text-center mb-12 space-y-6">
-            <h1 className="text-4xl md:text-6xl font-bold text-white drop-shadow-lg animate-fade-in">
+        <div className="relative container mx-auto px-4 py-20 md:py-28 lg:py-32">
+          <div className="max-w-3xl mx-auto text-center mb-10 md:mb-12 space-y-4 md:space-y-6">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white drop-shadow-lg animate-fade-in">
               FIND & BOOK
               <br />
               <span className="bg-accent text-accent-foreground px-4 py-2 inline-block rounded-lg transform rotate-[-2deg]">
@@ -70,7 +74,7 @@ const Home = () => {
               <br />
               NEAR YOU
             </h1>
-            <p className="text-lg md:text-xl text-white/95 drop-shadow-md animate-slide-up">
+            <p className="text-base md:text-lg lg:text-xl text-white/95 drop-shadow-md animate-slide-up">
               Discover premium sports venues for cricket, football, badminton and more
             </p>
           </div>
@@ -108,17 +112,25 @@ const Home = () => {
 
       {/* Venues by City (moved outside Hero) */}
       {city && (
-        <section className="py-16 md:py-24 bg-muted/30">
+        <section className="py-12 md:py-16 lg:py-24 bg-muted/30">
           <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold">Venues in {city}</h2>
+            <div className="flex items-center justify-between mb-8 md:mb-12">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold">Venues in {city}</h2>
             </div>
             {loadingCity ? (
-              <p>Loading venues...</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                {[...Array(8)].map((_, i) => (
+                  <VenueCardSkeleton key={i} />
+                ))}
+              </div>
             ) : cityVenues.length === 0 ? (
-              <p className="text-muted-foreground">{cityMsg || "No venues found."}</p>
+              <EmptyState
+                icon={Calendar}
+                title="No venues found"
+                description={cityMsg || "Try searching for a different city or check back later."}
+              />
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                 {cityVenues.map((v, index) => (
                   <VenueCard
                     key={v.id || index}
@@ -126,13 +138,7 @@ const Home = () => {
                     location={v.city || v.address || v.addtress || ""}
                     price={v.price || 0}
                     rating={v.rating || 4.5}
-                    image={(function () {
-                      const p = v.photos && v.photos[0];
-                      if (!p) return "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=800";
-                      if (p.startsWith("http")) return p;
-                      if (p.startsWith("data:")) return p;
-                      return `data:image/jpeg;base64,${p}`;
-                    })()}
+                    image={getVenueImage(v.photos)}
                     onBookClick={async () => {
                       // Build today's local date string
                       const now = new Date();
@@ -166,12 +172,12 @@ const Home = () => {
       {/* Top Venues section removed */}
 
       {/* Features */}
-      <section className="py-16 md:py-24">
+      <section className="py-12 md:py-16 lg:py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-center mb-8 md:mb-12">
             Why Choose Sportverse?
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             {features.map((feature, index) => (
               <div key={index} className="text-center space-y-4">
                 <div className="inline-flex p-4 rounded-2xl bg-primary/10">
@@ -186,9 +192,9 @@ const Home = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-12 bg-muted/30">
+      <footer className="border-t py-8 md:py-12 bg-muted/30">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             <div>
               <h4 className="font-semibold mb-4">About</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">

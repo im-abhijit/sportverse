@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { EmptyState } from "@/components/EmptyState";
+import { Calendar, MapPin, Package } from "lucide-react";
 import { getBookingsByUserMobile, type BookingResponse } from "@/services/bookingsApi";
 import {
   Select,
@@ -92,10 +95,10 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-8">My Dashboard</h1>
+      <div className="container mx-auto px-4 py-6 md:py-8">
+        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 md:mb-8">My Dashboard</h1>
 
-        <Tabs defaultValue="bookings" className="space-y-6">
+        <Tabs defaultValue="bookings" className="space-y-4 md:space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="bookings">My Bookings</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
@@ -103,19 +106,45 @@ const Dashboard = () => {
 
           <TabsContent value="bookings" className="space-y-6">
             {loading && (
-              <div className="text-sm text-muted-foreground">Loading bookings...</div>
+              <div className="grid gap-3 md:gap-4">
+                {[...Array(3)].map((_, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-6 w-20" />
+                          </div>
+                          <Skeleton className="h-4 w-1/2" />
+                          <Skeleton className="h-4 w-2/3" />
+                        </div>
+                        <Skeleton className="h-16 w-24 md:w-32" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
             {error && (
-              <div className="text-sm text-destructive">{error}</div>
+              <Card className="p-6 text-center">
+                <p className="text-sm md:text-base text-destructive mb-4">{error}</p>
+                <Button onClick={() => window.location.reload()}>Retry</Button>
+              </Card>
             )}
             {!loading && !error && bookings.length === 0 && (
-              <div className="text-sm text-muted-foreground">No bookings found.</div>
+              <EmptyState
+                icon={Package}
+                title="No bookings found"
+                description="You haven't made any bookings yet. Start exploring venues to book your first slot!"
+              />
             )}
-            <div className="grid gap-4">
-              {bookings.map((booking) => (
+            {!loading && !error && bookings.length > 0 && (
+              <div className="grid gap-3 md:gap-4">
+                {bookings.map((booking) => (
                 <Card key={booking.id} className="overflow-hidden">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <CardContent className="p-4 md:p-6">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
                       <div className="space-y-3 flex-1">
                         <div className="flex items-start justify-between">
                           <div>
@@ -163,8 +192,9 @@ const Dashboard = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="profile">

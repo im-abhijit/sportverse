@@ -9,19 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { API_BASE_URL } from "@/config/api";
 import { VenueDto } from "@/services/venuesApi";
-
-// Helper function to convert base64 string to data URL
-const getImageDataUrl = (base64String: string | undefined): string | undefined => {
-  if (!base64String) return undefined;
-  
-  // If it's already a data URL, return as is
-  if (base64String.startsWith('data:')) {
-    return base64String;
-  }
-  
-  // Otherwise, add the data URL prefix
-  return `data:image/jpeg;base64,${base64String}`;
-};
+import { getImageDataUrl } from "@/utils/imageUtils";
 
 // Helper function to convert file to base64
 const fileToBase64 = (file: File): Promise<string> => {
@@ -354,7 +342,7 @@ const PartnerVenueDetails = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/30 via-background to-green-50/30 dark:from-blue-950/20 dark:via-background dark:to-green-950/20">
-      <div className="container mx-auto px-4 py-6 md:py-8">
+      <div className="container mx-auto px-4 md:px-6 py-6 md:py-8">
         <Button
           variant="ghost"
           onClick={() => navigate("/partner/dashboard")}
@@ -381,7 +369,7 @@ const PartnerVenueDetails = () => {
                     placeholder="Enter venue name"
                   />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                   <div>
                     <Label htmlFor="venueAddress" className="text-sm font-medium text-muted-foreground">
                       Address
@@ -530,7 +518,7 @@ const PartnerVenueDetails = () => {
                   </div>
                 </div>
                 {venueImages.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
                     {venueImages.map((image, index) => (
                       <div
                         key={index}
