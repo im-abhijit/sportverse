@@ -41,6 +41,24 @@ const AddBooking = () => {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Helper function to format time with AM/PM if available
+  const formatSlotTime = (slot: SlotDto): string => {
+    const startTime = slot.startTime || "";
+    const endTime = slot.endTime || "";
+    const startAmPm = slot.startTimeAmPm || "";
+    const endAmPm = slot.endTimeAmPm || "";
+    
+    // If AM/PM data is available, use it
+    if (startAmPm || endAmPm) {
+      const startDisplay = startAmPm ? `${startTime} ${startAmPm}` : startTime;
+      const endDisplay = endAmPm ? `${endTime} ${endAmPm}` : endTime;
+      return `${startDisplay} - ${endDisplay}`;
+    }
+    
+    // Otherwise, just show the times as is
+    return `${startTime} - ${endTime}`;
+  };
+
   // Check authentication on mount
   useEffect(() => {
     const partnerId = localStorage.getItem("partnerId");
@@ -190,6 +208,8 @@ const AddBooking = () => {
           slotId: slot.slotId || slotKey,
           startTime: slot.startTime,
           endTime: slot.endTime,
+          startTimeAmPm: slot.startTimeAmPm,
+          endTimeAmPm: slot.endTimeAmPm,
           price: slot.price,
           isBooked: true, // Always true when creating a new booking
         };
@@ -381,7 +401,7 @@ const AddBooking = () => {
                                 "text-sm font-medium",
                                 isBooked && "text-muted-foreground line-through"
                               )}>
-                                {slot.startTime} - {slot.endTime}
+                                {formatSlotTime(slot)}
                               </p>
                               <p className={cn(
                                 "text-xs",

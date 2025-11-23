@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { EmptyState } from "@/components/EmptyState";
-import { Calendar, MapPin, Package } from "lucide-react";
+import { Calendar, Package } from "lucide-react";
 import { getBookingsByUserMobile, type BookingResponse } from "@/services/bookingsApi";
 import {
   Select,
@@ -151,10 +151,6 @@ const Dashboard = () => {
                             <h3 className="font-semibold text-lg mb-1">
                               {booking.venue?.name || "Venue"}
                             </h3>
-                            <div className="flex items-center text-sm text-muted-foreground">
-                              <MapPin className="h-4 w-4 mr-1" />
-                              {`${booking.venue?.city || ""}${booking.venue?.addtress ? ", " + booking.venue.addtress : ""}`}
-                            </div>
                           </div>
                           <Badge className={`${getStatusColor(toDisplayStatus(booking))} text-white`}>
                             {toDisplayStatus(booking)}
