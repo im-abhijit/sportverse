@@ -91,6 +91,24 @@ const Dashboard = () => {
     return (booking.bookingStatus || p || "").toString().toLowerCase() || "pending";
   };
 
+  // Helper function to format slot time with AM/PM if available
+  const formatSlotTime = (slot: { startTime: string; endTime: string; startTimeAmPm?: string; endTimeAmPm?: string }): string => {
+    const startTime = slot.startTime || "";
+    const endTime = slot.endTime || "";
+    const startAmPm = slot.startTimeAmPm || "";
+    const endAmPm = slot.endTimeAmPm || "";
+    
+    // If AM/PM data is available, use it
+    if (startAmPm || endAmPm) {
+      const startDisplay = startAmPm ? `${startTime} ${startAmPm}` : startTime;
+      const endDisplay = endAmPm ? `${endTime} ${endAmPm}` : endTime;
+      return `${startDisplay} - ${endDisplay}`;
+    }
+    
+    // Otherwise, just show the times as is
+    return `${startTime} - ${endTime}`;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -157,16 +175,33 @@ const Dashboard = () => {
                           </Badge>
                         </div>
 
-                        <div className="flex flex-wrap gap-4 text-sm">
-                          <div className="flex items-center text-muted-foreground">
+                        <div className="space-y-3">
+                          <div className="flex items-center text-sm text-muted-foreground">
                             <Calendar className="h-4 w-4 mr-1" />
                             {booking.date}
                           </div>
-                          <div className="text-muted-foreground">
-                            Slot: {Array.isArray(booking.slots) && booking.slots.length > 0
-                              ? booking.slots.map(s => `${s.startTime} - ${s.endTime}`).join(", ")
-                              : "-"}
-                          </div>
+                          {Array.isArray(booking.slots) && booking.slots.length > 0 ? (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Time Slots
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {booking.slots.map((slot, index) => (
+                                  <div
+                                    key={slot.slotId || index}
+                                    className="inline-flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-lg text-sm font-medium text-primary"
+                                  >
+                                    <span>{formatSlotTime(slot)}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      (₹{slot.price})
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">No slots</div>
+                          )}
                         </div>
                       </div>
 

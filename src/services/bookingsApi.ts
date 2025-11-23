@@ -15,6 +15,8 @@ export interface TimeSlot {
   slotId: string;
   startTime: string;
   endTime: string;
+  startTimeAmPm?: string; // AM or PM
+  endTimeAmPm?: string; // AM or PM
   price: number;
   booked?: boolean;
   isBooked?: boolean;
