@@ -56,6 +56,7 @@ const EditVenue = () => {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   
   // Selected slots with prices (key: time slot like "6 AM", value: price and selection state)
   const [selectedSlots, setSelectedSlots] = useState<Record<string, { price: number; selected: boolean; hour24: number; amPm: "AM" | "PM" }>>({});
@@ -451,7 +452,7 @@ const EditVenue = () => {
               {/* Date Selection */}
               <div className="space-y-2">
                 <Label>Select Date</Label>
-                <Popover>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -468,7 +469,12 @@ const EditVenue = () => {
                     <Calendar
                       mode="single"
                       selected={selectedDate}
-                      onSelect={(date) => date && setSelectedDate(date)}
+                      onSelect={(date) => {
+                        if (date) {
+                          setSelectedDate(date);
+                          setCalendarOpen(false);
+                        }
+                      }}
                       disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       initialFocus
                     />

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,16 @@ const OwnerLogin = () => {
   const [partnerId, setPartnerId] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    const partnerId = localStorage.getItem("partnerId");
+    const isPartnerLoggedIn = localStorage.getItem("isPartnerLoggedIn");
+    
+    if (partnerId && isPartnerLoggedIn === "true") {
+      navigate("/partner/dashboard");
+    }
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

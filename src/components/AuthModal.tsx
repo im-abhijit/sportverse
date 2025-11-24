@@ -5,13 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -40,7 +33,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const [mode, setMode] = useState<"login" | "venue">(initialMode);
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [countryCode, setCountryCode] = useState("+91");
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
@@ -66,20 +58,20 @@ const AuthModal: React.FC<AuthModalProps> = ({
   }, [resendTimer]);
 
   const handleSendOTP = async () => {
-    if (!phoneNumber || phoneNumber.length < 10) {
-      toast.error("Please enter a valid phone number");
+    if (!phoneNumber || phoneNumber.length !== 10) {
+      toast.error("Please enter a valid 10-digit phone number");
       return;
     }
 
     setIsLoading(true);
     
     try {
-      const fullPhoneNumber = `${countryCode}${phoneNumber}`;
-      const response = await generateOtp(fullPhoneNumber, "sms");
+      // Send only the 10-digit phone number without country code
+      const response = await generateOtp(phoneNumber, "sms");
       
       if (response.success) {
         setStep("otp");
-        setMaskedPhone(`${countryCode} ${phoneNumber.slice(0, 3)}XXXXX${phoneNumber.slice(-3)}`);
+        setMaskedPhone(`${phoneNumber.slice(0, 3)}XXXXX${phoneNumber.slice(-3)}`);
         setResendTimer(30);
         toast.success("OTP sent successfully!");
       } else {
@@ -101,8 +93,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(true);
     
     try {
-      const fullPhoneNumber = `${countryCode}${phoneNumber}`;
-      const response = await verifyOtp(fullPhoneNumber, otp);
+      // Send only the 10-digit phone number without country code
+      const response = await verifyOtp(phoneNumber, otp);
       
       if (response.success && response.valid) {
         toast.success("Login successful!");
@@ -115,8 +107,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
         if (response.userName) {
           localStorage.setItem('userName', response.userName);
         }
-        // Store phone number for profile display
-        localStorage.setItem('userPhoneNumber', fullPhoneNumber);
+        // Store phone number for profile display (only 10 digits, no country code)
+        localStorage.setItem('userPhoneNumber', phoneNumber);
         // Notify parent component about successful login
         onLoginSuccess?.();
         onClose();
@@ -146,8 +138,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(true);
     
     try {
-      const fullPhoneNumber = `${countryCode}${phoneNumber}`;
-      const response = await generateOtp(fullPhoneNumber, "sms");
+      // Send only the 10-digit phone number without country code
+      const response = await generateOtp(phoneNumber, "sms");
       
       if (response.success) {
         setResendTimer(30);
@@ -192,33 +184,21 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   <Label htmlFor="phone" className="text-sm font-medium">
                     Enter your phone number
                   </Label>
-                  <div className="flex gap-2 mt-2">
-                    <Select value={countryCode} onValueChange={setCountryCode}>
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="+91">+91</SelectItem>
-                        <SelectItem value="+1">+1</SelectItem>
-                        <SelectItem value="+44">+44</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="Enter phone number"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
-                      className="flex-1"
-                      maxLength={10}
-                    />
-                  </div>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="Enter 10-digit phone number"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                    className="w-full mt-2"
+                    maxLength={10}
+                  />
                 </div>
               </div>
 
               <Button
                 onClick={handleSendOTP}
-                disabled={isLoading || phoneNumber.length < 10}
+                disabled={isLoading || phoneNumber.length !== 10}
                 className="w-full"
                 size="lg"
               >

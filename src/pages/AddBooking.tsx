@@ -40,6 +40,7 @@ const AddBooking = () => {
   const [isLoadingVenues, setIsLoadingVenues] = useState(false);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Helper function to format time with AM/PM if available
   const formatSlotTime = (slot: SlotDto): string => {
@@ -176,8 +177,8 @@ const AddBooking = () => {
       return;
     }
 
-    if (!mobileNumber || mobileNumber.trim().length < 10) {
-      toast.error("Please enter a valid mobile number");
+    if (!mobileNumber || mobileNumber.trim().length !== 10) {
+      toast.error("Please enter a valid 10-digit mobile number");
       return;
     }
 
@@ -316,7 +317,7 @@ const AddBooking = () => {
               {/* Date Selection */}
               <div className="space-y-2">
                 <Label className="text-base font-semibold">Select Date *</Label>
-                <Popover>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -338,6 +339,7 @@ const AddBooking = () => {
                           const newDate = new Date(date);
                           newDate.setHours(0, 0, 0, 0);
                           setSelectedDate(newDate);
+                          setCalendarOpen(false);
                         }
                       }}
                       disabled={(date) => {

@@ -76,18 +76,8 @@ export async function getBookingsByPartner(partnerId: string): Promise<ApiRespon
 }
 
 export async function getBookingsByUserMobile(mobileNumber: string): Promise<ApiResponse<BookingResponse[]>> {
-  // Remove any spaces, remove +91 or +1 prefix, and ensure proper encoding
-  let cleanMobile = mobileNumber.trim().replace(/\s+/g, "");
-  // Remove +91 prefix if present
-  if (cleanMobile.startsWith("+91")) {
-    cleanMobile = cleanMobile.substring(3);
-  }
-  // Remove +1 prefix if present (for other countries, but mainly handling +91)
-  if (cleanMobile.startsWith("+1")) {
-    cleanMobile = cleanMobile.substring(2);
-  }
-  // Remove any remaining + sign if present
-  cleanMobile = cleanMobile.replace(/^\+/, "");
+  // Use mobile number as-is, just trim and remove spaces
+  const cleanMobile = mobileNumber.trim().replace(/\s+/g, "");
   
   const url = `${API_BASE_URL}/api/bookings/user/mobile/${encodeURIComponent(cleanMobile)}`;
   const res = await fetch(url, {

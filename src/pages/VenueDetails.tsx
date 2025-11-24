@@ -448,7 +448,7 @@ I am sending you the screenshot of the payment.
 
 Please confirm this booking.`;
     
-    // Clean mobile number for WhatsApp URL and ensure country code is present
+    // Clean mobile number for WhatsApp URL - WhatsApp requires country code
     let cleanMobile = partnerMobileNo.replace(/\s+/g, ""); // Remove spaces first
     
     // Remove + if present
@@ -456,16 +456,16 @@ Please confirm this booking.`;
       cleanMobile = cleanMobile.substring(1);
     }
     
-    // If number doesn't start with 91 (India country code), add it
+    // If number doesn't start with 91 (India country code), add it for WhatsApp
     if (!cleanMobile.startsWith("91")) {
-      // Remove leading 0 if present (some numbers might have 0 before the actual number)
+      // Remove leading 0 if present
       if (cleanMobile.startsWith("0")) {
         cleanMobile = cleanMobile.substring(1);
       }
       cleanMobile = "91" + cleanMobile;
     }
     
-    // Remove any remaining non-digit characters (just in case)
+    // Remove any remaining non-digit characters
     cleanMobile = cleanMobile.replace(/\D/g, "");
     
     const encodedMessage = encodeURIComponent(message);

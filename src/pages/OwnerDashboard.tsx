@@ -261,15 +261,15 @@ const OwnerDashboard = () => {
                   <Card 
                     key={venueId}
                     className="p-2.5 border border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 transition-colors"
-                  >
+                >
                     <div className="flex gap-2.5">
                       {venueImage && (
                         <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-                          <img
+                    <img
                             src={venueImage}
-                            alt={venue.name}
-                            className="w-full h-full object-cover"
-                          />
+                      alt={venue.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                       )}
                       <div className="flex-1 min-w-0">
@@ -277,7 +277,7 @@ const OwnerDashboard = () => {
                         {venueLocation && (
                           <p className="text-xs text-muted-foreground line-clamp-1 mb-1.5">
                             {venueLocation}
-                          </p>
+                    </p>
                         )}
                         <div className="flex gap-1.5">
                           <Button 
@@ -320,7 +320,7 @@ const OwnerDashboard = () => {
                 {venues.length > 0 && (
                   <span className="px-3 py-1 rounded-full bg-gradient-to-r from-blue-100 to-green-100 dark:from-blue-900 dark:to-green-900 text-blue-700 dark:text-blue-300 text-sm font-medium">
                     {venues.length}
-                  </span>
+                        </span>
                 )}
               </div>
             </div>
