@@ -20,6 +20,7 @@ const ListVenue = lazy(() => import("./pages/ListVenue"));
 const AddBooking = lazy(() => import("./pages/AddBooking"));
 const PartnerVenueDetails = lazy(() => import("./pages/PartnerVenueDetails"));
 const PartnerBookings = lazy(() => import("./pages/PartnerBookings"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -142,6 +143,14 @@ const App = () => (
                 element={
                   <Suspense fallback={<PageLoader />}>
                     <Booking />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/privacy-policy"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <PrivacyPolicy />
                   </Suspense>
                 }
               />
