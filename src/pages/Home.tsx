@@ -138,7 +138,7 @@ const Home = () => {
                     location={v.city || v.address || v.addtress || ""}
                     price={v.price || 0}
                     rating={v.rating || 4.5}
-                    image={getVenueImage(v.photos)}
+                    image={v.thumbnailUrl || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=800"}
                     onBookClick={async () => {
                       // Build today's local date string
                       const now = new Date();

@@ -252,8 +252,8 @@ const OwnerDashboard = () => {
             <div className="space-y-2">
               {venues.map((venue) => {
                 const venueId = venue.id || "";
-                const venueImage = venue.photos && venue.photos.length > 0 
-                  ? getImageDataUrl(venue.photos[0])
+                const venueImage = venue.thumbnailUrl 
+                  ? venue.thumbnailUrl
                   : undefined;
                 const venueLocation = venue.addtress || venue.address || venue.city || "";
 
@@ -359,8 +359,8 @@ const OwnerDashboard = () => {
               <div className="space-y-5">
                 {venues.map((venue) => {
                   const venueId = venue.id || "";
-                  const venueImage = venue.photos && venue.photos.length > 0 
-                    ? getImageDataUrl(venue.photos[0])
+                  const venueImage = venue.thumbnailUrl 
+                    ? venue.thumbnailUrl
                     : undefined;
                   const venueLocation = venue.addtress || venue.address || venue.city || "";
 

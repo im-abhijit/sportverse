@@ -9,6 +9,7 @@ export interface VenueDto {
   addtress?: string; // backend sample typo
   address?: string;
   photos?: string[];
+  thumbnailUrl?: string;
   ownerId?: string;
   city?: string;
   price?: number;

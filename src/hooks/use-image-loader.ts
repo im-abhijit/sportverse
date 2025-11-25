@@ -20,14 +20,14 @@ export const useImageLoader = ({ src, fallback }: UseImageLoaderOptions) => {
     setIsLoading(true);
     setError(false);
 
-    // Handle base64 images
+    // Handle data URLs (from file uploads) and relative paths
     if (src.startsWith("data:") || src.startsWith("/")) {
       setImageSrc(src);
       setIsLoading(false);
       return;
     }
 
-    // Handle external URLs
+    // Handle external URLs (http/https) - backend now sends complete URLs
     const img = new Image();
     img.onload = () => {
       setImageSrc(src);

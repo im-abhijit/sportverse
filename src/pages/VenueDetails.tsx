@@ -82,6 +82,8 @@ const VenueDetails = () => {
   const [totalAmount, setTotalAmount] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [fullVenueData, setFullVenueData] = useState<any>(passedVenue);
+  const [loadingVenue, setLoadingVenue] = useState(false);
   
   // Hardcoded QR code image and UPI ID
   const venueQrCodeImage = qrCodeImage;
@@ -94,6 +96,38 @@ const VenueDetails = () => {
     }
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${venueUpiId}&pn=Sportverse&am=${amount}&cu=INR`)}`;
   };
+
+  // Fetch full venue details with all photos when page loads
+  useEffect(() => {
+    const fetchFullVenueDetails = async () => {
+      const venueId = passedVenue?.venueId || passedVenue?.id || (id as string);
+      if (!venueId) return;
+
+      // Always fetch to ensure we have all photos loaded
+      setLoadingVenue(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/venues/${venueId}`, {
+          headers: {
+            Accept: "application/json",
+            "ngrok-skip-browser-warning": "true",
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setFullVenueData(data.data);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch venue details:", error);
+        // Keep using passedVenue as fallback
+      } finally {
+        setLoadingVenue(false);
+      }
+    };
+
+    fetchFullVenueDetails();
+  }, [id, passedVenue?.venueId, passedVenue?.id]);
 
   // Always refresh slots on mount with today's local date to avoid stale data
   useEffect(() => {
@@ -159,24 +193,26 @@ const VenueDetails = () => {
   };
 
   const venue = useMemo(() => {
-    const name = passedVenue?.name || "Venue";
-    const locationText = passedVenue?.city || passedVenue?.address || passedVenue?.addtress || "";
-    const rating = passedVenue?.rating || 4.5;
-    const price = passedVenue?.price || 0;
-    const photos: string[] = Array.isArray(passedVenue?.photos) ? passedVenue.photos : [];
+    // Use fullVenueData if available (has all photos), otherwise fallback to passedVenue
+    const venueData = fullVenueData || passedVenue;
+    const name = venueData?.name || "Venue";
+    const locationText = venueData?.city || venueData?.address || venueData?.addtress || "";
+    const rating = venueData?.rating || 4.5;
+    const price = venueData?.price || 0;
+    const photos: string[] = Array.isArray(venueData?.photos) ? venueData.photos : [];
     const images = (photos.length ? photos : [
       "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=800",
       "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800",
       "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800",
     ]).map((p: string) => {
       if (!p) return p;
-      if (p.startsWith("http") || p.startsWith("data:")) return p;
-      return `data:image/jpeg;base64,${p}`;
+      // Return URL as-is (no base64 conversion - backend now sends URLs)
+      return p;
     });
     const description = passedVenue?.description || "";
     
     // Use amenities from API, map to icon/label structure
-    const apiAmenities: string[] = Array.isArray(passedVenue?.amenities) ? passedVenue.amenities : [];
+    const apiAmenities: string[] = Array.isArray(venueData?.amenities) ? venueData.amenities : [];
     const amenities = apiAmenities.map((amenity) => ({
       icon: getAmenityIcon(amenity),
       label: amenity,
@@ -187,15 +223,15 @@ const VenueDetails = () => {
       location: locationText,
       price,
       rating,
-      reviews: passedVenue?.reviews || 0,
+      reviews: venueData?.reviews || 0,
       images,
       description,
       amenities,
     };
-  }, [passedVenue]);
+  }, [fullVenueData, passedVenue]);
 
   const fetchSlots = async (d: Date | undefined) => {
-    const venueId = passedVenue?.venueId || passedVenue?.id || (id as string);
+    const venueId = fullVenueData?.id || passedVenue?.venueId || passedVenue?.id || (id as string);
     if (!venueId) return;
     const base = d || todayLocal;
     const yyyy = base.getFullYear();

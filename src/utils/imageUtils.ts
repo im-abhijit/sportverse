@@ -3,26 +3,25 @@
  */
 
 /**
- * Converts base64 string to data URL format
- * @param base64String - Base64 encoded image string
- * @returns Data URL string or undefined
+ * Gets image URL (handles URLs directly, no base64 conversion)
+ * @param imageString - Image URL string
+ * @returns Image URL string or undefined
  */
-export const getImageDataUrl = (base64String: string | undefined): string | undefined => {
-  if (!base64String) return undefined;
+export const getImageDataUrl = (imageString: string | undefined): string | undefined => {
+  if (!imageString) return undefined;
   
-  // If it's already a data URL, return as is
-  if (base64String.startsWith('data:')) {
-    return base64String;
+  // If it's already a data URL (from file uploads), return as is
+  if (imageString.startsWith('data:')) {
+    return imageString;
   }
   
-  // Otherwise, add the data URL prefix
-  // Try to detect image type from common base64 patterns, default to jpeg
-  return `data:image/jpeg;base64,${base64String}`;
+  // Return URL as-is (no base64 conversion)
+  return imageString;
 };
 
 /**
  * Processes venue photo array and returns formatted image URLs
- * @param photos - Array of photo strings (base64 or URLs)
+ * @param photos - Array of photo URL strings
  * @param fallback - Fallback image URL
  * @returns Array of formatted image URLs
  */
@@ -33,14 +32,16 @@ export const processVenuePhotos = (photos: string[] | undefined, fallback?: stri
 
   return photos.map((photo) => {
     if (!photo) return fallback || "";
+    // Return URL as-is (no base64 conversion)
     if (photo.startsWith("http") || photo.startsWith("data:")) return photo;
-    return `data:image/jpeg;base64,${photo}`;
+    // If it's not a URL or data URL, treat as URL (backend now sends URLs)
+    return photo;
   });
 };
 
 /**
  * Gets the first venue photo with fallback
- * @param photos - Array of photo strings
+ * @param photos - Array of photo URL strings
  * @param fallback - Fallback image URL
  * @returns Formatted image URL
  */
@@ -49,7 +50,9 @@ export const getVenueImage = (photos: string[] | undefined, fallback: string = "
   
   const firstPhoto = photos[0];
   if (!firstPhoto) return fallback;
+  // Return URL as-is (no base64 conversion)
   if (firstPhoto.startsWith("http") || firstPhoto.startsWith("data:")) return firstPhoto;
-  return `data:image/jpeg;base64,${firstPhoto}`;
+  // If it's not a URL or data URL, treat as URL (backend now sends URLs)
+  return firstPhoto;
 };
 
