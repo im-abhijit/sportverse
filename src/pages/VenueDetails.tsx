@@ -612,12 +612,14 @@ Please confirm this booking.`;
           <div className="lg:col-span-1">
             <Card className="sticky top-20 md:top-24">
               <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
-                <div>
-                  <div className="text-3xl font-bold text-primary mb-1">
-                    ₹{venue.price}
+                {venue.price > 0 && (
+                  <div>
+                    <div className="text-3xl font-bold text-primary mb-1">
+                      ₹{venue.price}
+                    </div>
+                    <div className="text-sm text-muted-foreground">per hour</div>
                   </div>
-                  <div className="text-sm text-muted-foreground">per hour</div>
-                </div>
+                )}
 
                 <div>
                   <h3 className="font-semibold mb-3">Select Date</h3>
