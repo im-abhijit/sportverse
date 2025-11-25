@@ -139,6 +139,25 @@ const VenueDetails = () => {
   };
   */
 
+  // Helper function to get icon for amenity
+  const getAmenityIcon = (amenityName: string) => {
+    const lowerName = amenityName.toLowerCase();
+    if (lowerName.includes("light") || lowerName.includes("flood")) {
+      return Zap;
+    }
+    if (lowerName.includes("parking") || lowerName.includes("car")) {
+      return Car;
+    }
+    if (lowerName.includes("wifi") || lowerName.includes("wi-fi")) {
+      return Wifi;
+    }
+    if (lowerName.includes("user") || lowerName.includes("people") || lowerName.includes("capacity")) {
+      return Users;
+    }
+    // Default icon if no match
+    return Zap;
+  };
+
   const venue = useMemo(() => {
     const name = passedVenue?.name || "Venue";
     const locationText = passedVenue?.city || passedVenue?.address || passedVenue?.addtress || "";
@@ -155,6 +174,14 @@ const VenueDetails = () => {
       return `data:image/jpeg;base64,${p}`;
     });
     const description = passedVenue?.description || "";
+    
+    // Use amenities from API, map to icon/label structure
+    const apiAmenities: string[] = Array.isArray(passedVenue?.amenities) ? passedVenue.amenities : [];
+    const amenities = apiAmenities.map((amenity) => ({
+      icon: getAmenityIcon(amenity),
+      label: amenity,
+    }));
+    
     return {
       name,
       location: locationText,
@@ -163,10 +190,7 @@ const VenueDetails = () => {
       reviews: passedVenue?.reviews || 0,
       images,
       description,
-      amenities: [
-        { icon: Zap, label: "Flood Lights" },
-        { icon: Car, label: "Parking" },
-      ],
+      amenities,
     };
   }, [passedVenue]);
 
@@ -565,14 +589,21 @@ Please confirm this booking.`;
             <Card>
               <CardContent className="p-4 md:p-6">
                 <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Amenities</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                  {venue.amenities.map((amenity, idx) => (
-                    <div key={idx} className="flex items-center space-x-2">
-                      <amenity.icon className="h-5 w-5 text-primary" />
-                      <span>{amenity.label}</span>
-                    </div>
-                  ))}
-                </div>
+                {venue.amenities.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                    {venue.amenities.map((amenity, idx) => {
+                      const IconComponent = amenity.icon;
+                      return (
+                        <div key={idx} className="flex items-center space-x-2">
+                          <IconComponent className="h-5 w-5 text-primary" />
+                          <span>{amenity.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No amenities listed</p>
+                )}
               </CardContent>
             </Card>
           </div>
