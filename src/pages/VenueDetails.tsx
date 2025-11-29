@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, Wifi, Car, Zap, Users, MessageCircle } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Wifi, Car, Zap, Users, MessageCircle, Upload, X, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import Navbar from "@/components/Navbar";
 import AuthModal from "@/components/AuthModal";
@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import qrCodeImage from "@/assets/qrcode.jpeg";
 import { API_BASE_URL } from "@/config/api";
+import { uploadImageToImageKit } from "@/utils/imageKitUpload";
 // import { createOrder, verifySignature } from "@/services/paymentsApi"; // Commented out for manual payment
 
 const VenueDetails = () => {
@@ -84,6 +85,13 @@ const VenueDetails = () => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [fullVenueData, setFullVenueData] = useState<any>(passedVenue);
   const [loadingVenue, setLoadingVenue] = useState(false);
+  
+  // Payment screenshot upload states
+  const [paymentScreenshotUrl, setPaymentScreenshotUrl] = useState<string | null>(null);
+  const [paymentScreenshotFile, setPaymentScreenshotFile] = useState<File | null>(null);
+  const [isUploadingScreenshot, setIsUploadingScreenshot] = useState(false);
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   // Hardcoded QR code image and UPI ID
   const venueQrCodeImage = qrCodeImage;
@@ -375,14 +383,69 @@ const VenueDetails = () => {
     */
   };
 
-  const handleWhatsAppClick = async () => {
-    // Get partner mobile number from venue data
-    const partnerMobileNo = passedVenue?.partnerMobileNo;
-    if (!partnerMobileNo) {
-      toast.error("Venue WhatsApp number not found. Please contact support.");
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
       return;
     }
 
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setPaymentScreenshotFile(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setUploadPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = async () => {
+    if (!paymentScreenshotFile) {
+      toast.error("Please select an image first");
+      return;
+    }
+
+    setIsUploadingScreenshot(true);
+    setUploadProgress(0);
+    try {
+      const uploadedUrl = await uploadImageToImageKit(paymentScreenshotFile, (progress) => {
+        setUploadProgress(progress);
+      });
+      setPaymentScreenshotUrl(uploadedUrl);
+      setUploadProgress(100);
+      toast.success("Payment screenshot uploaded successfully!");
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to upload image. Please try again.");
+      setUploadProgress(0);
+    } finally {
+      setIsUploadingScreenshot(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setPaymentScreenshotFile(null);
+    setPaymentScreenshotUrl(null);
+    setUploadPreview(null);
+    setUploadProgress(0);
+    // Reset file input
+    const fileInput = document.getElementById("payment-screenshot-input") as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = "";
+    }
+  };
+
+  const handleConfirmBooking = async () => {
     // Ensure user is logged in
     const userId = localStorage.getItem("userId");
     if (!userId) {
@@ -444,6 +507,12 @@ const VenueDetails = () => {
       return;
     }
 
+    // Validate payment screenshot is uploaded
+    if (!paymentScreenshotUrl) {
+      toast.error("Please upload payment screenshot before confirming booking");
+      return;
+    }
+
     // Create booking with PENDING status
     try {
       setIsCreatingOrder(true);
@@ -455,6 +524,7 @@ const VenueDetails = () => {
         status: "PENDING",
         paymentStatus: "PENDING",
         slots: slotsArray,
+        paymentScreenshotUrl: paymentScreenshotUrl,
       };
 
       const response = await fetch(`${API_BASE_URL}/api/bookings`, {
@@ -472,65 +542,25 @@ const VenueDetails = () => {
         return;
       }
 
-      toast.success("Booking created successfully! Opening WhatsApp...");
+      toast.success("Booking created successfully!");
+      
+      // Close payment modal and reset states
+      setIsPaymentModalOpen(false);
+      setPaymentScreenshotUrl(null);
+      setPaymentScreenshotFile(null);
+      setUploadPreview(null);
+      setSelectedSlots([]);
+      
+      // Navigate to dashboard or show success message
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1500);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create booking. Please try again.");
       return;
     } finally {
       setIsCreatingOrder(false);
     }
-    
-    // Get selected slot details for WhatsApp message
-    const selectedSlotDetails = selectedSlots
-      .map((slotId) => {
-        const s = slots.find((sl) => sl.id === slotId);
-        return s ? `${s.time} (₹${s.price})` : null;
-      })
-      .filter((s) => s !== null)
-      .join(", ");
-    
-    // Calculate total amount
-    const totalAmount = selectedSlots.reduce((sum, slotId) => {
-      const s = slots.find((sl) => sl.id === slotId);
-      return sum + (s?.price ?? 0);
-    }, 0);
-    
-    // Build message
-    const message = `Please verify my booking:
-
-Venue: ${venue.name}
-Location: ${venue.location}
-Date: ${formattedDate}
-Slots: ${selectedSlotDetails}
-Total Amount: ₹${totalAmount}
-
-I am sending you the screenshot of the payment.
-
-Please confirm this booking.`;
-    
-    // Clean mobile number for WhatsApp URL - WhatsApp requires country code
-    let cleanMobile = partnerMobileNo.replace(/\s+/g, ""); // Remove spaces first
-    
-    // Remove + if present
-    if (cleanMobile.startsWith("+")) {
-      cleanMobile = cleanMobile.substring(1);
-    }
-    
-    // If number doesn't start with 91 (India country code), add it for WhatsApp
-    if (!cleanMobile.startsWith("91")) {
-      // Remove leading 0 if present
-      if (cleanMobile.startsWith("0")) {
-        cleanMobile = cleanMobile.substring(1);
-      }
-      cleanMobile = "91" + cleanMobile;
-    }
-    
-    // Remove any remaining non-digit characters
-    cleanMobile = cleanMobile.replace(/\D/g, "");
-    
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${cleanMobile}?text=${encodedMessage}`;
-    window.open(whatsappUrl, "_blank");
   };
 
   return (
@@ -567,8 +597,8 @@ Please confirm this booking.`;
                         src={image}
                         alt={`${venue.name} - Photo ${index + 1}`}
                         className="w-full h-full object-cover"
-                      />
-                    </div>
+            />
+          </div>
                   </CarouselItem>
                 ))}
               </CarouselContent>
@@ -602,7 +632,7 @@ Please confirm this booking.`;
         ) : (
           <div className="relative mb-12 h-[400px] md:h-[500px] rounded-2xl overflow-hidden bg-muted flex items-center justify-center">
             <p className="text-muted-foreground">No images available</p>
-          </div>
+        </div>
         )}
 
         {/* Title/Address/Description directly under images (desktop and mobile) */}
@@ -630,13 +660,13 @@ Please confirm this booking.`;
                     {venue.amenities.map((amenity, idx) => {
                       const IconComponent = amenity.icon;
                       return (
-                        <div key={idx} className="flex items-center space-x-2">
+                    <div key={idx} className="flex items-center space-x-2">
                           <IconComponent className="h-5 w-5 text-primary" />
-                          <span>{amenity.label}</span>
-                        </div>
+                      <span>{amenity.label}</span>
+                    </div>
                       );
                     })}
-                  </div>
+                </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">No amenities listed</p>
                 )}
@@ -649,12 +679,12 @@ Please confirm this booking.`;
             <Card className="sticky top-20 md:top-24">
               <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
                 {venue.price > 0 && (
-                  <div>
-                    <div className="text-3xl font-bold text-primary mb-1">
-                      ₹{venue.price}
-                    </div>
-                    <div className="text-sm text-muted-foreground">per hour</div>
+                <div>
+                  <div className="text-3xl font-bold text-primary mb-1">
+                    ₹{venue.price}
                   </div>
+                  <div className="text-sm text-muted-foreground">per hour</div>
+                </div>
                 )}
 
                 <div>
@@ -692,16 +722,16 @@ Please confirm this booking.`;
                       {slots.map((slot, idx) => {
                         const isSelected = selectedSlots.includes(slot.id);
                         return (
-                          <Button
-                            key={idx}
+                        <Button
+                          key={idx}
                             variant="outline"
-                            disabled={!slot.available}
+                          disabled={!slot.available}
                             onClick={() => {
                               if (slot.available) {
-                                setSelectedSlots((prev) =>
-                                  prev.includes(slot.id)
-                                    ? prev.filter((t) => t !== slot.id)
-                                    : [...prev, slot.id]
+                            setSelectedSlots((prev) =>
+                              prev.includes(slot.id)
+                                ? prev.filter((t) => t !== slot.id)
+                                : [...prev, slot.id]
                                 );
                               }
                             }}
@@ -732,7 +762,7 @@ Please confirm this booking.`;
                             {!slot.available && (
                               <span className="text-xs text-red-600 dark:text-red-400 font-medium mt-1">Booked</span>
                             )}
-                          </Button>
+                        </Button>
                         );
                       })}
                     </div>
@@ -793,72 +823,189 @@ Please confirm this booking.`;
     
     {/* Manual Payment Modal */}
     <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
-      <DialogContent className="w-[95vw] max-w-sm mx-4 p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-2">
-          <DialogTitle className="text-lg sm:text-xl">Make Payment</DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm">
+      <DialogContent className="w-[95vw] max-w-sm mx-4 p-3 sm:p-4 md:p-6 max-h-[95vh] overflow-y-auto">
+        <DialogHeader className="pb-1 sm:pb-2">
+          <DialogTitle className="text-base sm:text-lg md:text-xl">Make Payment</DialogTitle>
+          <DialogDescription className="text-[10px] sm:text-xs md:text-sm">
             Complete your booking by making the payment
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 sm:space-y-5 py-2">
+        <div className="space-y-2.5 sm:space-y-3 md:space-y-4 py-1">
           {/* QR Code */}
-          <div className="flex flex-col items-center space-y-3 sm:space-y-4">
+          <div className="flex flex-col items-center space-y-2 sm:space-y-2.5">
             {venueQrCodeImage ? (
-              <div className="bg-white p-3 sm:p-4 rounded-lg border-2 border-dashed border-primary">
+              <div className="bg-white p-2 sm:p-3 rounded-lg border-2 border-dashed border-primary">
                 <img 
                   src={venueQrCodeImage} 
                   alt="QR Code for payment" 
-                  className="w-36 h-36 sm:w-44 sm:h-44 mx-auto object-contain"
+                  className="w-28 h-28 sm:w-36 md:w-44 sm:h-36 md:h-44 mx-auto object-contain"
                 />
               </div>
             ) : (
-              <div className="bg-white p-3 sm:p-4 rounded-lg border-2 border-dashed border-primary">
-                <img 
-                  src={getQRCodeURL(totalAmount)} 
+            <div className="bg-white p-2 sm:p-3 rounded-lg border-2 border-dashed border-primary">
+              <img 
+                src={getQRCodeURL(totalAmount)} 
                   alt="QR Code for payment" 
-                  className="w-36 h-36 sm:w-44 sm:h-44 mx-auto"
-                />
-              </div>
+                className="w-28 h-28 sm:w-36 md:w-44 sm:h-36 md:h-44 mx-auto"
+              />
+            </div>
             )}
-            <div className="text-center space-y-2 w-full">
-              <p className="text-xs sm:text-sm font-semibold text-muted-foreground">Scan QR Code</p>
-              <p className="text-base sm:text-lg font-bold text-foreground">OR</p>
-              <p className="text-xs sm:text-sm font-semibold text-muted-foreground">Pay via UPI ID</p>
-              <div className="bg-muted px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg border">
-                <p className="text-base sm:text-xl font-bold text-primary font-mono break-all">{venueUpiId}</p>
+            <div className="text-center space-y-1 sm:space-y-1.5 w-full">
+              <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground">Scan QR Code</p>
+              <p className="text-sm sm:text-base md:text-lg font-bold text-foreground">OR</p>
+              <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground">Pay via UPI ID</p>
+              <div className="bg-muted px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border">
+                <p className="text-xs sm:text-sm md:text-base font-bold text-primary font-mono break-all">{venueUpiId}</p>
               </div>
             </div>
           </div>
 
           {/* Amount */}
-          <div className="bg-primary/10 px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg text-center">
-            <p className="text-xs sm:text-sm text-muted-foreground">Amount to Pay</p>
-            <p className="text-2xl sm:text-3xl font-bold text-primary">₹{totalAmount}</p>
+          <div className="bg-primary/10 px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-lg text-center">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Amount to Pay</p>
+            <p className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">₹{totalAmount}</p>
           </div>
 
           {/* Instructions */}
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 sm:p-4">
-            <p className="text-xs sm:text-sm font-medium text-foreground leading-relaxed text-center">
-              Make the payment of ₹{totalAmount} and send screenshot to the owner
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 sm:p-2.5 md:p-3">
+            <p className="text-[10px] sm:text-xs md:text-sm font-medium text-foreground leading-relaxed text-center">
+              Make the payment of ₹{totalAmount} and upload the payment screenshot
             </p>
           </div>
 
-          {/* WhatsApp Button */}
+          {/* Payment Screenshot Upload */}
+          <div className="space-y-2 sm:space-y-2.5">
+            <label className="text-[10px] sm:text-xs md:text-sm font-semibold text-foreground">
+              Upload Payment Screenshot *
+            </label>
+            
+            {!uploadPreview && !paymentScreenshotUrl ? (
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-3 sm:p-4 md:p-6">
+                <div className="flex flex-col items-center justify-center space-y-2 sm:space-y-2.5">
+                  <Upload className="h-6 w-6 sm:h-8 md:h-10 sm:w-8 md:w-10 text-muted-foreground" />
+                  <div className="text-center space-y-0.5 sm:space-y-1">
+                    <p className="text-[10px] sm:text-xs md:text-sm font-medium text-foreground">
+                      Click to select image
+                    </p>
+                    <p className="text-[9px] sm:text-xs text-muted-foreground">
+                      PNG, JPG up to 5MB
+                    </p>
+                  </div>
+                  <input
+                    id="payment-screenshot-input"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-[10px] sm:text-xs h-7 sm:h-8"
+                    onClick={() => {
+                      document.getElementById("payment-screenshot-input")?.click();
+                    }}
+                  >
+                    Select Image
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="relative border-2 border-primary/50 rounded-lg p-2 sm:p-2.5 md:p-3 bg-muted/50">
+                {uploadPreview && (
+                  <div className="relative">
+                    <img
+                      src={uploadPreview}
+                      alt="Payment screenshot preview"
+                      className="w-full h-auto max-h-32 sm:max-h-40 md:max-h-48 object-contain rounded"
+                    />
+                    {!paymentScreenshotUrl && (
+                      <div className="absolute inset-0 bg-black/50 rounded flex items-center justify-center">
+                        <div className="text-center space-y-1 sm:space-y-1.5">
+                          <p className="text-white text-[10px] sm:text-xs md:text-sm font-medium">
+                            Preview - Click Upload to continue
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {isUploadingScreenshot && (
+                  <div className="mt-1.5 sm:mt-2 space-y-0.5 sm:space-y-1">
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground">
+                      <span>Uploading...</span>
+                      <span>{Math.round(uploadProgress)}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-1.5 sm:h-2">
+                      <div
+                        className="bg-primary h-1.5 sm:h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {paymentScreenshotUrl && !isUploadingScreenshot && (
+                  <div className="flex items-center justify-center space-x-1.5 sm:space-x-2 mt-1.5 sm:mt-2 p-1.5 sm:p-2 bg-green-50 dark:bg-green-900/20 rounded">
+                    <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 dark:text-green-400" />
+                    <p className="text-[10px] sm:text-xs md:text-sm text-green-700 dark:text-green-300 font-medium">
+                      Screenshot uploaded successfully
+                    </p>
+                  </div>
+                )}
+                <div className="flex gap-1.5 sm:gap-2 mt-2 sm:mt-2.5 md:mt-3">
+                  {!paymentScreenshotUrl && paymentScreenshotFile && (
+                    <Button
+                      type="button"
+                      onClick={handleImageUpload}
+                      disabled={isUploadingScreenshot}
+                      className="flex-1 text-[10px] sm:text-xs h-7 sm:h-8"
+                      size="sm"
+                    >
+                      {isUploadingScreenshot ? (
+                        <>
+                          <div className="animate-spin rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 border-2 border-white border-t-transparent mr-1 sm:mr-2"></div>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 sm:mr-2" />
+                          Upload
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRemoveImage}
+                    className="flex-1 text-[10px] sm:text-xs h-7 sm:h-8"
+                  >
+                    <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 sm:mr-2" />
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Confirm Booking Button */}
           <Button
-            onClick={handleWhatsAppClick}
-            disabled={isCreatingOrder}
-            className="w-full bg-green-600 hover:bg-green-700 text-white h-12 sm:h-14 text-sm sm:text-base transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Send payment screenshot on WhatsApp"
+            onClick={handleConfirmBooking}
+            disabled={isCreatingOrder || !paymentScreenshotUrl}
+            className="w-full bg-green-600 hover:bg-green-700 text-white h-10 sm:h-12 md:h-14 text-xs sm:text-sm md:text-base transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Confirm booking"
           >
             {isCreatingOrder ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-white border-t-transparent mr-2"></div>
+                <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 border-2 border-white border-t-transparent mr-1.5 sm:mr-2"></div>
                 Creating Booking...
               </>
             ) : (
               <>
-                <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Send Screenshot on WhatsApp
+                <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1.5 sm:mr-2" />
+                Confirm Booking
               </>
             )}
           </Button>

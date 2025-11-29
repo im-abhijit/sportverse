@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
-import { Plus, TrendingUp, Calendar, MapPin, Sparkles, ArrowRight } from "lucide-react";
+import { Plus, TrendingUp, Calendar, MapPin, Sparkles, ArrowRight, LogOut } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { getVenuesByPartner, VenueDto } from "@/services/venuesApi";
 import { getImageDataUrl } from "@/utils/imageUtils";
+import NotificationPermissionPrompt from "@/components/NotificationPermissionPrompt";
 
 const OwnerDashboard = () => {
   const navigate = useNavigate();
@@ -64,6 +65,23 @@ const OwnerDashboard = () => {
   }, [navigate, location.pathname]); // Refetch when navigating to dashboard
 
 
+  const handleLogout = () => {
+    // Clear partner session data
+    localStorage.removeItem("partnerId");
+    localStorage.removeItem("isOwnerLoggedIn");
+    localStorage.removeItem("isPartnerLoggedIn");
+    localStorage.removeItem("partnerVenues");
+    
+    // Clear push notification data
+    localStorage.removeItem("pushSubscriptionRegistered");
+    localStorage.removeItem("pushSubscriptionPartnerId");
+    localStorage.removeItem("fcmToken");
+    localStorage.removeItem("fcmTokenRegistered");
+    
+    toast.success("Logged out successfully");
+    navigate("/partner/login");
+  };
+
   const stats = [
     {
       title: "Total Bookings",
@@ -91,6 +109,7 @@ const OwnerDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/30 via-background to-green-50/30 dark:from-blue-950/20 dark:via-background dark:to-green-950/20">
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+        <NotificationPermissionPrompt />
         {/* Hero Section - Different for Mobile and Web */}
         {/* Mobile Hero */}
         <div className="block lg:hidden mb-4">
@@ -101,15 +120,25 @@ const OwnerDashboard = () => {
                 Dashboard
             </h1>
             </div>
-            <Button 
-              variant="hero" 
-              size="sm"
-              className="shadow-md"
-              onClick={() => navigate("/partner/list-venue")}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Venue
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleLogout}
+                aria-label="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="hero" 
+                size="sm"
+                className="shadow-md"
+                onClick={() => navigate("/partner/list-venue")}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Venue
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -128,15 +157,27 @@ const OwnerDashboard = () => {
                   Manage your venues, bookings, and grow your business
                 </p>
               </div>
-              <Button 
-                variant="hero" 
-                size="lg"
-                className="shadow-xl hover:shadow-2xl transition-shadow bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
-                onClick={() => navigate("/partner/list-venue")}
-              >
-            <Plus className="h-5 w-5 mr-2" />
-            Add New Venue
-          </Button>
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={handleLogout}
+                  aria-label="Logout"
+                  className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                >
+                  <LogOut className="h-5 w-5 mr-2" />
+                  Logout
+                </Button>
+                <Button 
+                  variant="hero" 
+                  size="lg"
+                  className="shadow-xl hover:shadow-2xl transition-shadow bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
+                  onClick={() => navigate("/partner/list-venue")}
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Add New Venue
+                </Button>
+              </div>
             </div>
           </div>
           <div className="absolute top-0 right-0 w-48 h-48 lg:w-64 lg:h-64 bg-gradient-to-br from-blue-400/20 to-green-400/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>

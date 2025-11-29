@@ -21,7 +21,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { getBookingsByPartner, confirmBooking, type BookingResponse } from "@/services/bookingsApi";
+import { getBookingsByPartner, confirmBooking, cancelBooking, type BookingResponse } from "@/services/bookingsApi";
 import { format } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useBookingFilters, type SortOption, getDisplayStatus } from "@/hooks/use-booking-filters";
@@ -33,6 +33,7 @@ const PartnerBookings = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingBookingId, setConfirmingBookingId] = useState<string | null>(null);
+  const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null);
 
   // Filter states
   const [filterDate, setFilterDate] = useState<string>("");
@@ -110,7 +111,13 @@ const PartnerBookings = () => {
       try {
         const response = await getBookingsByPartner(partnerId);
         if (response.success && response.data) {
-          setBookings(response.data);
+          // Filter out cancelled bookings
+          const activeBookings = response.data.filter((booking) => {
+            const status = (booking as any).status?.toUpperCase() || "";
+            const bookingStatus = (booking.bookingStatus || "").toUpperCase();
+            return status !== "CANCELLED" && bookingStatus !== "CANCELLED";
+          });
+          setBookings(activeBookings);
           toast.success("Bookings loaded successfully");
         } else {
           setError(response.message || "Failed to fetch bookings");
@@ -199,7 +206,13 @@ const PartnerBookings = () => {
         if (partnerId) {
           const refreshResponse = await getBookingsByPartner(partnerId);
           if (refreshResponse.success && refreshResponse.data) {
-            setBookings(refreshResponse.data);
+            // Filter out cancelled bookings
+            const activeBookings = refreshResponse.data.filter((booking) => {
+              const status = (booking as any).status?.toUpperCase() || "";
+              const bookingStatus = (booking.bookingStatus || "").toUpperCase();
+              return status !== "CANCELLED" && bookingStatus !== "CANCELLED";
+            });
+            setBookings(activeBookings);
           }
         }
       } else {
@@ -209,6 +222,47 @@ const PartnerBookings = () => {
       toast.error(error instanceof Error ? error.message : "Failed to confirm booking. Please try again.");
     } finally {
       setConfirmingBookingId(null);
+    }
+  }, []);
+
+  const handleCancelBooking = useCallback(async (bookingId: string) => {
+    if (!bookingId) {
+      toast.error("Booking ID is required");
+      return;
+    }
+
+    // Confirm before cancelling
+    if (!window.confirm("Are you sure you want to cancel this booking? This action cannot be undone.")) {
+      return;
+    }
+
+    setCancellingBookingId(bookingId);
+    try {
+      const response = await cancelBooking(bookingId);
+      if (response.success) {
+        toast.success(response.message || "Booking cancelled successfully");
+        
+        // Refresh bookings list
+        const partnerId = localStorage.getItem("partnerId");
+        if (partnerId) {
+          const refreshResponse = await getBookingsByPartner(partnerId);
+          if (refreshResponse.success && refreshResponse.data) {
+            // Filter out cancelled bookings
+            const activeBookings = refreshResponse.data.filter((booking) => {
+              const status = (booking as any).status?.toUpperCase() || "";
+              const bookingStatus = (booking.bookingStatus || "").toUpperCase();
+              return status !== "CANCELLED" && bookingStatus !== "CANCELLED";
+            });
+            setBookings(activeBookings);
+          }
+        }
+      } else {
+        toast.error(response.message || "Failed to cancel booking");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to cancel booking. Please try again.");
+    } finally {
+      setCancellingBookingId(null);
     }
   }, []);
 
@@ -634,6 +688,9 @@ const PartnerBookings = () => {
                               getStatusColor={getStatusColor}
                               getDisplayStatus={getDisplayStatusMemo}
                               showConfirmButton={false}
+                              onCancel={handleCancelBooking}
+                              isCancelling={cancellingBookingId === booking.id}
+                              showCancelButton={true}
                             />
                           </div>
                         ))}
@@ -664,6 +721,9 @@ const PartnerBookings = () => {
                               onConfirm={handleConfirmBooking}
                               isConfirming={confirmingBookingId === booking.id}
                               showConfirmButton={true}
+                              onCancel={handleCancelBooking}
+                              isCancelling={cancellingBookingId === booking.id}
+                              showCancelButton={true}
                             />
                           </div>
                         ))}
@@ -708,6 +768,9 @@ const PartnerBookings = () => {
                               getStatusColor={getStatusColor}
                               getDisplayStatus={getDisplayStatusMemo}
                               showConfirmButton={false}
+                              onCancel={handleCancelBooking}
+                              isCancelling={cancellingBookingId === booking.id}
+                              showCancelButton={true}
                             />
                           </div>
                         ))}
@@ -743,6 +806,9 @@ const PartnerBookings = () => {
                               onConfirm={handleConfirmBooking}
                               isConfirming={confirmingBookingId === booking.id}
                               showConfirmButton={true}
+                              onCancel={handleCancelBooking}
+                              isCancelling={cancellingBookingId === booking.id}
+                              showCancelButton={true}
                             />
                           </div>
                         ))}

@@ -10,7 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { EmptyState } from "@/components/EmptyState";
-import { Calendar, Package } from "lucide-react";
+import { Calendar, Package, Image as ImageIcon } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getBookingsByUserMobile, type BookingResponse } from "@/services/bookingsApi";
 import {
   Select,
@@ -32,6 +38,8 @@ const Dashboard = () => {
   const [bookings, setBookings] = useState<BookingResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+  const [isScreenshotOpen, setIsScreenshotOpen] = useState(false);
 
   useEffect(() => {
     // Prefill from localStorage if present
@@ -70,11 +78,13 @@ const Dashboard = () => {
   }, [location.pathname, phone]); // Refetch when navigating to dashboard or phone changes
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case "confirmed":
         return "bg-primary";
       case "completed":
         return "bg-green-500";
+      case "pending":
+        return "bg-yellow-500";
       case "cancelled":
         return "bg-destructive";
       default:
@@ -219,6 +229,19 @@ const Dashboard = () => {
                             View Details
                           </Button>
                         )}
+                        {booking.paymentScreenshotUrl && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setScreenshotUrl(booking.paymentScreenshotUrl || null);
+                              setIsScreenshotOpen(true);
+                            }}
+                          >
+                            <ImageIcon className="h-4 w-4 mr-2" />
+                            View Screenshot
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -303,6 +326,26 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Payment Screenshot Dialog */}
+      <Dialog open={isScreenshotOpen} onOpenChange={setIsScreenshotOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Payment Screenshot</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-4">
+            {screenshotUrl ? (
+              <img
+                src={screenshotUrl}
+                alt="Payment Screenshot"
+                className="max-w-full h-auto rounded-lg border"
+              />
+            ) : (
+              <p className="text-muted-foreground">Screenshot not available</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
