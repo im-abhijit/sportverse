@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, Wifi, Car, Zap, Users, MessageCircle, Upload, X, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Wifi, Car, Zap, Users, MessageCircle, Upload, X, CheckCircle2, Copy } from "lucide-react";
 import { format } from "date-fns";
 import Navbar from "@/components/Navbar";
 import AuthModal from "@/components/AuthModal";
@@ -445,6 +445,28 @@ const VenueDetails = () => {
     }
   };
 
+  const handleCopyUpiId = async () => {
+    try {
+      await navigator.clipboard.writeText(venueUpiId);
+      toast.success("UPI ID copied to clipboard!");
+    } catch (error) {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = venueUpiId;
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        toast.success("UPI ID copied to clipboard!");
+      } catch (err) {
+        toast.error("Failed to copy UPI ID");
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
   const handleConfirmBooking = async () => {
     // Ensure user is logged in
     const userId = localStorage.getItem("userId");
@@ -854,8 +876,18 @@ const VenueDetails = () => {
               <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground">Scan QR Code</p>
               <p className="text-sm sm:text-base md:text-lg font-bold text-foreground">OR</p>
               <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground">Pay via UPI ID</p>
-              <div className="bg-muted px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border">
-                <p className="text-xs sm:text-sm md:text-base font-bold text-primary font-mono break-all">{venueUpiId}</p>
+              <div className="bg-muted px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border flex items-center justify-between gap-2">
+                <p className="text-xs sm:text-sm md:text-base font-bold text-primary font-mono break-all flex-1">{venueUpiId}</p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCopyUpiId}
+                  className="h-6 w-6 sm:h-7 sm:w-7 p-0 flex-shrink-0"
+                  aria-label="Copy UPI ID"
+                >
+                  <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
+                </Button>
               </div>
             </div>
           </div>
