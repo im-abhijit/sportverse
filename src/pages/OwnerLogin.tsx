@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { partnerLogin } from "@/services/authApi";
-import { initializePushNotifications } from "@/services/pushNotificationService";
 
 const OwnerLogin = () => {
   const navigate = useNavigate();
@@ -44,21 +43,6 @@ const OwnerLogin = () => {
         localStorage.setItem("isPartnerLoggedIn", "true");
         
         toast.success(response.message || "Login successful!");
-        
-        // Initialize push notifications in the background
-        // Don't block navigation if this fails
-        initializePushNotifications(loggedInPartnerId)
-          .then((success) => {
-            if (success) {
-              console.log("Push notifications initialized successfully");
-            } else {
-              console.warn("Push notifications initialization returned false");
-            }
-          })
-          .catch((error) => {
-            console.error("Failed to initialize push notifications:", error);
-            // Show error in console for debugging
-          });
         
         navigate("/partner/dashboard");
       } else {

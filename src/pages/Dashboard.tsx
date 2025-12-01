@@ -80,7 +80,7 @@ const Dashboard = () => {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "confirmed":
-        return "bg-primary";
+        return "bg-green-500";
       case "completed":
         return "bg-green-500";
       case "pending":
@@ -172,76 +172,73 @@ const Dashboard = () => {
                 {bookings.map((booking) => (
                 <Card key={booking.id} className="overflow-hidden">
                   <CardContent className="p-4 md:p-6">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
-                      <div className="space-y-3 flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-semibold text-lg mb-1">
-                              {booking.venue?.name || "Venue"}
-                            </h3>
-                          </div>
-                          <Badge className={`${getStatusColor(toDisplayStatus(booking))} text-white`}>
-                            {toDisplayStatus(booking)}
-                          </Badge>
-                        </div>
-
-                        <div className="space-y-3">
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Calendar className="h-4 w-4 mr-1" />
-                            {booking.date}
-                          </div>
-                          {Array.isArray(booking.slots) && booking.slots.length > 0 ? (
-                            <div className="space-y-2">
-                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                Time Slots
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {booking.slots.map((slot, index) => (
-                                  <div
-                                    key={slot.slotId || index}
-                                    className="inline-flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-lg text-sm font-medium text-primary"
-                                  >
-                                    <span>{formatSlotTime(slot)}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                      (₹{slot.price})
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-muted-foreground">No slots</div>
-                          )}
-                        </div>
+                    <div className="flex flex-col gap-3 md:gap-4">
+                      {/* Header: Venue Name and Status */}
+                      <div className="flex items-start justify-between gap-2 min-w-0">
+                        <h3 className="font-semibold text-base md:text-lg mb-0 truncate flex-1 min-w-0">
+                          {booking.venue?.name || "Venue"}
+                        </h3>
+                        <Badge className={`${getStatusColor(toDisplayStatus(booking))} text-white shrink-0`}>
+                          {toDisplayStatus(booking)}
+                        </Badge>
                       </div>
 
-                      <div className="flex items-center gap-4 md:flex-col md:items-end">
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-primary">
-                            ₹{booking.amount}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Total Amount
+                      {/* Date */}
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4 mr-1 shrink-0" />
+                        <span className="truncate">{booking.date}</span>
+                      </div>
+
+                      {/* Time Slots */}
+                      {Array.isArray(booking.slots) && booking.slots.length > 0 ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Time Slots
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {booking.slots.map((slot, index) => (
+                              <div
+                                key={slot.slotId || index}
+                                className="inline-flex items-center gap-1.5 px-2 py-1.5 bg-primary/10 border border-primary/20 rounded-lg text-xs md:text-sm font-medium text-primary max-w-full"
+                              >
+                                <span className="truncate">{formatSlotTime(slot)}</span>
+                                <span className="text-xs text-muted-foreground shrink-0">
+                                  (₹{slot.price})
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                        {toDisplayStatus(booking) === "confirmed" && (
-                          <Button variant="outline" size="sm">
-                            View Details
-                          </Button>
-                        )}
-                        {booking.paymentScreenshotUrl && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setScreenshotUrl(booking.paymentScreenshotUrl || null);
-                              setIsScreenshotOpen(true);
-                            }}
-                          >
-                            <ImageIcon className="h-4 w-4 mr-2" />
-                            View Screenshot
-                          </Button>
-                        )}
+                      ) : (
+                        <div className="text-sm text-muted-foreground">No slots</div>
+                      )}
+
+                      {/* Amount and Actions - Mobile: Stack, Desktop: Side by side */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t">
+                        <div className="text-left sm:text-right w-full sm:w-auto">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs text-muted-foreground">Total Amount:</span>
+                            <span className="text-xl md:text-2xl font-bold text-primary">
+                              ₹{booking.amount}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                          {booking.paymentScreenshotUrl && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setScreenshotUrl(booking.paymentScreenshotUrl || null);
+                                setIsScreenshotOpen(true);
+                              }}
+                              className="w-full sm:w-auto"
+                            >
+                              <ImageIcon className="h-4 w-4 mr-2" />
+                              View Screenshot
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>

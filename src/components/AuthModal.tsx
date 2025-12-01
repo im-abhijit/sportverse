@@ -13,6 +13,7 @@ import {
 import OTPInput from "@/components/ui/otp-input";
 import { toast } from "sonner";
 import { generateOtp, verifyOtp } from "@/services/authApi";
+import NamePromptModal from "./NamePromptModal";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -37,6 +38,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [maskedPhone, setMaskedPhone] = useState("");
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [verifiedUserId, setVerifiedUserId] = useState<string | null>(null);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -46,6 +49,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
       setOtp("");
       setResendTimer(0);
       setMode(initialMode);
+      setShowNamePrompt(false);
+      setVerifiedUserId(null);
     }
   }, [isOpen, initialMode]);
 
@@ -103,18 +108,42 @@ const AuthModal: React.FC<AuthModalProps> = ({
         // Persist returned user details for future API calls
         if (response.userId) {
           localStorage.setItem('userId', response.userId);
+          setVerifiedUserId(response.userId);
         }
         if (response.userName) {
           localStorage.setItem('userName', response.userName);
         }
         // Store phone number for profile display (only 10 digits, no country code)
         localStorage.setItem('userPhoneNumber', phoneNumber);
-        // Notify parent component about successful login
-        onLoginSuccess?.();
-        onClose();
-        // Navigate only if requested; otherwise stay on current page
-        if (redirectOnSuccessTo) {
-          navigate(redirectOnSuccessTo);
+        
+        // Check if userName matches pattern user_xxxx where xxxx is last 4 digits
+        const lastFourDigits = phoneNumber.slice(-4);
+        const defaultPattern = `user_${lastFourDigits}`;
+        const userName = (response.userName || '').trim();
+        
+        console.log('[AuthModal] Checking username pattern:', {
+          userName,
+          defaultPattern,
+          matches: userName === defaultPattern,
+          phoneNumber,
+          lastFourDigits,
+          userNameLength: userName.length,
+          patternLength: defaultPattern.length
+        });
+        
+        // Check if userName matches the default pattern (case-insensitive, trimmed)
+        if (userName.toLowerCase() === defaultPattern.toLowerCase()) {
+          // Show name prompt modal - don't close AuthModal yet
+          console.log('[AuthModal] Showing name prompt modal');
+          setShowNamePrompt(true);
+          // Don't close the auth modal or navigate yet - wait for name prompt to complete
+        } else {
+          // Normal flow - notify parent and close
+          onLoginSuccess?.();
+          onClose();
+          if (redirectOnSuccessTo) {
+            navigate(redirectOnSuccessTo);
+          }
         }
       } else {
         toast.error(response.message || "Invalid OTP. Please try again.");
@@ -160,8 +189,18 @@ const AuthModal: React.FC<AuthModalProps> = ({
     setResendTimer(0);
   };
 
+  const handleNamePromptSuccess = () => {
+    setShowNamePrompt(false);
+    onLoginSuccess?.();
+    onClose();
+    if (redirectOnSuccessTo) {
+      navigate(redirectOnSuccessTo);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <>
+    <Dialog open={isOpen && !showNamePrompt} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -261,6 +300,15 @@ const AuthModal: React.FC<AuthModalProps> = ({
         </div>
       </DialogContent>
     </Dialog>
+    {showNamePrompt && verifiedUserId && (
+      <NamePromptModal
+        isOpen={showNamePrompt}
+        userId={verifiedUserId}
+        phoneNumber={phoneNumber}
+        onSuccess={handleNamePromptSuccess}
+      />
+    )}
+    </>
   );
 };
 
