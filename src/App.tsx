@@ -1,12 +1,13 @@
-import { Suspense, lazy } from "react";
+import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import PushNotificationHandler from "@/components/PushNotificationHandler";
+import { PageTransition } from "@/components/PageTransition";
 
 // Lazy load pages for code splitting
 const Home = lazy(() => import("./pages/Home"));
@@ -42,6 +43,159 @@ const PageLoader = () => (
   </div>
 );
 
+// AnimatedRoutes component to handle route transitions
+const AnimatedRoutes = () => {
+  const location = useLocation();
+  
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <Routes location={location} key={location.pathname}>
+        <Route 
+          path="/" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <Home />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/venues" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <Venues />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/venue/:id" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <VenueDetails />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/dashboard" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <Dashboard />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/partner/login" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <OwnerLogin />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/partner/dashboard" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <OwnerDashboard />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/partner/edit-venue/:venueId" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <EditVenue />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/partner/venue/:venueId" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <PartnerVenueDetails />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/partner/list-venue" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <ListVenue />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/partner/add-booking" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <AddBooking />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/partner/bookings" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <PartnerBookings />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/booking" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <Booking />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/privacy-policy" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <PrivacyPolicy />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route 
+          path="*" 
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <PageTransition>
+                <NotFound />
+              </PageTransition>
+            </Suspense>
+          } 
+        />
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -49,124 +203,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <PushNotificationHandler />
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <Home />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/venues"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <Venues />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/venue/:id"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <VenueDetails />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <Dashboard />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/partner/login"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <OwnerLogin />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/partner/dashboard"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <OwnerDashboard />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/partner/edit-venue/:venueId"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <EditVenue />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/partner/venue/:venueId"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <PartnerVenueDetails />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/partner/list-venue"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <ListVenue />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/partner/add-booking"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <AddBooking />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/partner/bookings"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <PartnerBookings />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/booking"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <Booking />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/privacy-policy"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <PrivacyPolicy />
-                  </Suspense>
-                }
-              />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route
-                path="*"
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <NotFound />
-                  </Suspense>
-                }
-              />
-            </Routes>
-          </Suspense>
+          <AnimatedRoutes />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
